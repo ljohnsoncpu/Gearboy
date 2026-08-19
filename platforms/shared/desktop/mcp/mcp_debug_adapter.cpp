@@ -668,6 +668,14 @@ MemoryAreaInfo DebugAdapter::GetMemoryAreaInfo(int area)
             info.data = memory->GetVRAMBank1();
             info.size = 0x2000;
             break;
+        case MCP_MEMORY_AREA_CGB_WRAM:
+            info.name = "CGB_WRAM";
+            if (m_core->IsCGB())
+            {
+                info.data = memory->GetWRAM0();
+                info.size = 0x8000;
+            }
+            break;
         default:
             break;
     }

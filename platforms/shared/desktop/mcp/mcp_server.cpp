@@ -589,7 +589,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "list_memory_areas"},
         {"title", "List Memory Areas"},
-        {"description", "List memory areas: ROM0/ROM1, VRAM/VRAM0/VRAM1, WRAM, OAM, IO, HIRAM; returns area IDs, sizes, 0-based offsets."},
+        {"description", "List memory areas: ROM0/ROM1, VRAM/VRAM0/VRAM1, WRAM/CGB_WRAM, OAM, IO, HIRAM; returns area IDs, sizes, 0-based offsets."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},

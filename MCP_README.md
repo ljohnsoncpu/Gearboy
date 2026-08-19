@@ -349,7 +349,7 @@ The server exposes tools organized in the following categories:
 - `get_cpu_status` - Get complete SM83 CPU status (registers, flags Z/N/H/C, IME, halt, CGB double speed)
 
 ### Memory Operations
-- `list_memory_areas` - List all available memory areas (ROM0, ROM1, VRAM, RAM, WRAM0, WRAM1, WRAM, OAM, IO, HIRAM, and SGB areas when active: SGB_TILES, SGB_MAP, SGB_BPAL, SGB_SPAL, SGB_ATF, SGB_AMAP, SGB_EPAL)
+- `list_memory_areas` - List all available memory areas (ROM0, ROM1, VRAM, RAM, WRAM0, WRAM1, WRAM, CGB_WRAM, OAM, IO, HIRAM, and SGB areas when active: SGB_TILES, SGB_MAP, SGB_BPAL, SGB_SPAL, SGB_ATF, SGB_AMAP, SGB_EPAL); `CGB_WRAM` is a diagnostic view of all eight physical CGB WRAM banks
 - `read_memory` - Read from specific memory area
 - `write_memory` - Write to specific memory area
 - `get_memory_selection` - Get current memory selection range
