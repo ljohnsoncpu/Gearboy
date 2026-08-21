@@ -113,6 +113,15 @@ typedef void (*RamChangedCallback) (void);
 #define GAMEBOY_WIDTH 160
 #define GAMEBOY_HEIGHT 144
 
+// SMBDX widescreen research mode. 256 is not an arbitrary target: it is exactly
+// the width of the hardware's 32x32 background map, so a 256-pixel viewport
+// shows the resident tile ring exactly once with no wraparound ambiguity. The
+// extra pixels are split evenly, six 8-pixel columns on each side. Native
+// GAMEBOY_WIDTH output must stay byte-identical; see docs/adr/0003.
+#define GAMEBOY_WIDE_WIDTH 256
+#define GAMEBOY_WIDE_MARGIN ((GAMEBOY_WIDE_WIDTH - GAMEBOY_WIDTH) / 2)
+#define GAMEBOY_MAX_WIDTH GAMEBOY_WIDE_WIDTH
+
 #define SGB_SCREEN_WIDTH 256
 #define SGB_SCREEN_HEIGHT 224
 

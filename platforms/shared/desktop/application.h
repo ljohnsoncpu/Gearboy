@@ -41,6 +41,10 @@ struct ApplicationParams
     bool mcp_tcp_port_set = false;
     std::string mcp_http_address = "127.0.0.1";
     bool mcp_http_address_set = false;
+    // SMBDX widescreen research mode. Off by default so native 160x144 output
+    // stays the reference; see docs/adr/0003 in the project repo.
+    bool wide_screen = false;
+    bool no_color_correction = false;
 };
 
 EXTERN SDL_Window* application_sdl_window;

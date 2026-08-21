@@ -50,6 +50,9 @@ Video::Video(Memory* pMemory, Processor* pProcessor)
     m_iHideFrames = 0;
     m_IRQ48Signal = 0;
     m_pixelFormat = GB_PIXEL_RGB565;
+    m_bWideScreen = false;
+    m_iScreenWidth = GAMEBOY_WIDTH;
+    m_iViewportOriginX = 0;
 }
 
 Video::~Video()
@@ -61,10 +64,30 @@ Video::~Video()
 
 void Video::Init()
 {
-    m_pFrameBuffer = new u8[GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
-    m_pSpriteXCacheBuffer = new int[GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
-    m_pColorCacheBuffer = new u8[GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
+    // Allocated at the maximum width so selecting wide mode never reallocates.
+    // Native mode uses a GAMEBOY_WIDTH stride into the same storage, leaving the
+    // tail of each row untouched and every native index unchanged.
+    m_pFrameBuffer = new u8[GAMEBOY_MAX_WIDTH * GAMEBOY_HEIGHT];
+    m_pSpriteXCacheBuffer = new int[GAMEBOY_MAX_WIDTH * GAMEBOY_HEIGHT];
+    m_pColorCacheBuffer = new u8[GAMEBOY_MAX_WIDTH * GAMEBOY_HEIGHT];
     Reset(false);
+}
+
+void Video::SetWideScreen(bool enabled)
+{
+    m_bWideScreen = enabled;
+    m_iScreenWidth = enabled ? GAMEBOY_WIDE_WIDTH : GAMEBOY_WIDTH;
+    m_iViewportOriginX = enabled ? GAMEBOY_WIDE_MARGIN : 0;
+}
+
+bool Video::IsWideScreen() const
+{
+    return m_bWideScreen;
+}
+
+int Video::GetScreenWidth() const
+{
+    return m_iScreenWidth;
 }
 
 void Video::SetTraceLogger(TraceLogger* pTraceLogger)
@@ -95,7 +118,7 @@ void Video::SetSGBTransferMode(bool enabled)
 
 void Video::Reset(bool bCGB)
 {
-    for (int i = 0; i < (GAMEBOY_WIDTH * GAMEBOY_HEIGHT); i++)
+    for (int i = 0; i < (m_iScreenWidth * GAMEBOY_HEIGHT); i++)
         m_pSpriteXCacheBuffer[i] = m_pFrameBuffer[i] = m_pColorCacheBuffer[i] = 0;
 
     for (int p = 0; p < 8; p++)
@@ -199,14 +222,14 @@ bool Video::Tick(unsigned int &clockCycles, u16* pColorFrameBuffer, GB_Color_For
                             {
                                 if (m_bCGB)
                                 {
-                                    for (int i = 0; i < GAMEBOY_WIDTH * GAMEBOY_HEIGHT; i++)
+                                    for (int i = 0; i < m_iScreenWidth * GAMEBOY_HEIGHT; i++)
                                         m_pColorFrameBuffer[i] = 0xFFFF;
                                 }
                                 else
                                 {
                                     if (!m_bSGBTransferMode)
-                                        memset(m_pFrameBuffer, 0, GAMEBOY_WIDTH * GAMEBOY_HEIGHT);
-                                    memset(m_pColorFrameBuffer, 0, GAMEBOY_WIDTH * GAMEBOY_HEIGHT * sizeof(u16));
+                                        memset(m_pFrameBuffer, 0, m_iScreenWidth * GAMEBOY_HEIGHT);
+                                    memset(m_pColorFrameBuffer, 0, m_iScreenWidth * GAMEBOY_HEIGHT * sizeof(u16));
                                 }
                             }
 
@@ -276,7 +299,11 @@ bool Video::Tick(unsigned int &clockCycles, u16* pColorFrameBuffer, GB_Color_For
             case 3:
             {
 #ifndef PERFORMANCE
-                if (m_iPixelCounter < 160 && (m_iHideFrames == 0 || m_bSGBTransferMode))
+                // Wide mode renders the whole row once in ScanLine instead. The
+                // 96 extra columns have no hardware timing analogue, so there is
+                // no mid-line SCX for them; see the limitation in docs/adr/0003.
+                if (!m_bWideScreen && m_iPixelCounter < 160
+                    && (m_iHideFrames == 0 || m_bSGBTransferMode))
                 {
                     m_iTileCycleCounter += clockCycles;
                     u8 lcdc = m_pMemory->Retrieve(0xFF40);
@@ -287,7 +314,7 @@ bool Video::Tick(unsigned int &clockCycles, u16* pColorFrameBuffer, GB_Color_For
                         {
                             if (IsValidPointer(m_pColorFrameBuffer))
                             {
-                                RenderBG(m_iStatusModeLYCounter, m_iPixelCounter);
+                                RenderBG(m_iStatusModeLYCounter, m_iPixelCounter, 4);
                             }
                             m_iPixelCounter += 4;
                             m_iTileCycleCounter -= 3;
@@ -377,14 +404,14 @@ bool Video::Tick(unsigned int &clockCycles, u16* pColorFrameBuffer, GB_Color_For
             {
                 if (m_bCGB)
                 {
-                    for (int i = 0; i < GAMEBOY_WIDTH * GAMEBOY_HEIGHT; i++)
+                    for (int i = 0; i < m_iScreenWidth * GAMEBOY_HEIGHT; i++)
                         m_pColorFrameBuffer[i] = 0xFFFF;
                 }
                 else
                 {
                     if (!m_bSGBTransferMode)
-                        memset(m_pFrameBuffer, 0, GAMEBOY_WIDTH * GAMEBOY_HEIGHT);
-                    memset(m_pColorFrameBuffer, 0, GAMEBOY_WIDTH * GAMEBOY_HEIGHT * sizeof(u16));
+                        memset(m_pFrameBuffer, 0, m_iScreenWidth * GAMEBOY_HEIGHT);
+                    memset(m_pColorFrameBuffer, 0, m_iScreenWidth * GAMEBOY_HEIGHT * sizeof(u16));
                 }
             }
 
@@ -423,14 +450,14 @@ void Video::DisableScreen()
     {
         if (m_bCGB)
         {
-            for (int i = 0; i < GAMEBOY_WIDTH * GAMEBOY_HEIGHT; i++)
+            for (int i = 0; i < m_iScreenWidth * GAMEBOY_HEIGHT; i++)
                 m_pColorFrameBuffer[i] = 0xFFFF;
         }
         else
         {
             if (!m_bSGBTransferMode)
-                memset(m_pFrameBuffer, 0, GAMEBOY_WIDTH * GAMEBOY_HEIGHT);
-            memset(m_pColorFrameBuffer, 0, GAMEBOY_WIDTH * GAMEBOY_HEIGHT * sizeof(u16));
+                memset(m_pFrameBuffer, 0, m_iScreenWidth * GAMEBOY_HEIGHT);
+            memset(m_pColorFrameBuffer, 0, m_iScreenWidth * GAMEBOY_HEIGHT * sizeof(u16));
         }
     }
 }
@@ -601,40 +628,41 @@ void Video::ScanLine(int line)
         if (m_bScreenEnabled && IsSetBit(lcdc, 7))
         {
 #ifdef PERFORMANCE
-            RenderBG(line, 0);
+            RenderBG(line, 0, m_iScreenWidth);
+#else
+            // Native mode has already drawn this row four pixels at a time from
+            // the mode 3 pixel counter. Wide mode skips that path and draws the
+            // full row here, from a single SCX sample.
+            if (m_bWideScreen)
+                RenderBG(line, 0, m_iScreenWidth);
 #endif
             RenderWindow(line);
             RenderSprites(line);
         }
         else
         {
-            int line_width = (line * GAMEBOY_WIDTH);
+            int line_width = (line * m_iScreenWidth);
             if (m_bCGB)
             {
-                for (int x = 0; x < GAMEBOY_WIDTH; x++)
+                for (int x = 0; x < m_iScreenWidth; x++)
                     m_pColorFrameBuffer[line_width + x] = 0xFFFF;
             }
             else
             {
-                for (int x = 0; x < GAMEBOY_WIDTH; x++)
+                for (int x = 0; x < m_iScreenWidth; x++)
                     m_pFrameBuffer[line_width + x] = 0;
             }
         }
     }
 }
 
-void Video::RenderBG(int line, int pixel)
+void Video::RenderBG(int line, int pixel, int pixels_to_render)
 {
     u8 lcdc = m_pMemory->Retrieve(0xFF40);
-    int line_width = (line * GAMEBOY_WIDTH);
-    
+    int line_width = (line * m_iScreenWidth);
+
     if (m_bCGB || IsSetBit(lcdc, 0))
     {
-#ifdef PERFORMANCE
-        int pixels_to_render = 160;
-#else
-        int pixels_to_render = 4;
-#endif
         int offset_x_init = pixel & 0x7;
         int offset_x_end = offset_x_init + pixels_to_render;
         int screen_tile = pixel >> 3;
@@ -652,7 +680,11 @@ void Video::RenderBG(int line, int pixel)
         for (int offset_x = offset_x_init; offset_x < offset_x_end; offset_x++)
         {
             int screen_pixel_x = (screen_tile << 3) + offset_x;
-            u8 map_pixel_x = screen_pixel_x + scroll_x;
+            // The native 160-pixel window sits at m_iViewportOriginX inside the
+            // output row, so the map coordinate is shifted left by that origin.
+            // map_pixel_x is a u8: it wraps modulo the 256-pixel map, which is
+            // exactly why a 256-wide viewport walks the ring once and no more.
+            u8 map_pixel_x = screen_pixel_x - m_iViewportOriginX + scroll_x;
             int map_tile_x = map_pixel_x >> 3;
             int map_tile_offset_x = map_pixel_x & 0x7;
             u16 map_tile_addr = map_start_addr + line_scrolled_32 + map_tile_x;
@@ -719,12 +751,7 @@ void Video::RenderBG(int line, int pixel)
     }
     else
     {
-#ifdef PERFORMANCE
-        int pixels_to_clear = 160;
-#else
-        int pixels_to_clear = 4;
-#endif
-        for (int x = 0; x < pixels_to_clear; x++)
+        for (int x = 0; x < pixels_to_render; x++)
         {
             int position = line_width + pixel + x;
             m_pColorFrameBuffer[position] = 0;
@@ -767,7 +794,7 @@ void Video::RenderWindow(int line)
     int pixely = lineAdjusted & 0x7;
     int pixely_2 = pixely << 1;
     int pixely_2_flip = (7 - pixely) << 1;
-    int line_width = (line * GAMEBOY_WIDTH);
+    int line_width = (line * m_iScreenWidth);
     u8 palette = m_pMemory->Retrieve(0xFF47);
 
     for (int x = 0; x < 32; x++)
@@ -809,9 +836,14 @@ void Video::RenderWindow(int line)
 
         for (int pixelx = 0; pixelx < 8; pixelx++)
         {
-            int bufferX = (mapOffsetX + pixelx + wx);
+            // The window is screen-space, so it moves with the viewport origin
+            // but keeps its native 160-pixel extent. M5 deliberately does not
+            // stretch the HUD into the new margins: the window map holds no
+            // authored content out there, so widening it would invent picture.
+            int bufferX = (mapOffsetX + pixelx + wx) + m_iViewportOriginX;
 
-            if (bufferX < 0 || bufferX >= GAMEBOY_WIDTH)
+            if (bufferX < m_iViewportOriginX
+                || bufferX >= m_iViewportOriginX + GAMEBOY_WIDTH)
                 continue;
 
             int pixelx_pos = pixelx;
@@ -852,7 +884,7 @@ void Video::RenderSprites(int line)
         return;
 
     int sprite_height = IsSetBit(lcdc, 2) ? 16 : 8;
-    int line_width = (line * GAMEBOY_WIDTH);
+    int line_width = (line * m_iScreenWidth);
 
     bool visible_sprites[40];
     int sprite_limit = 0;
@@ -869,8 +901,10 @@ void Video::RenderSprites(int line)
         }
 
         sprite_limit++;
-        
-        visible_sprites[sprite] = sprite_limit <= 10;
+
+        // Wide mode lifts the hardware ten-per-scanline limit (ADR 0003). Native
+        // mode keeps it, and with it the game's own rotating-cursor flicker.
+        visible_sprites[sprite] = m_bWideScreen || (sprite_limit <= 10);
     }
 
     for (int sprite = 39; sprite >= 0; sprite--)
@@ -879,9 +913,13 @@ void Video::RenderSprites(int line)
             continue;
 
         int sprite_4 = sprite << 2;
-        int sprite_x = m_pMemory->Retrieve(0xFE00 + sprite_4 + 1) - 8;
+        // OAM X is screen-space, so it shifts with the viewport origin. In M5 the
+        // game still refuses to write OAM outside the native window (the three
+        // cp $B8 clips are an M6 change), so nothing yet appears in the margins.
+        int sprite_x = m_pMemory->Retrieve(0xFE00 + sprite_4 + 1) - 8
+                + m_iViewportOriginX;
 
-        if ((sprite_x < -7) || (sprite_x >= GAMEBOY_WIDTH))
+        if ((sprite_x < -7) || (sprite_x >= m_iScreenWidth))
             continue;
 
         int sprite_y = m_pMemory->Retrieve(0xFE00 + sprite_4) - 16;
@@ -933,7 +971,7 @@ void Video::RenderSprites(int line)
 
             int bufferX = (sprite_x + pixelx);
 
-            if (bufferX < 0 || bufferX >= GAMEBOY_WIDTH)
+            if (bufferX < 0 || bufferX >= m_iScreenWidth)
                 continue;
 
             int position = line_width + bufferX;
@@ -1011,6 +1049,9 @@ void Video::SaveState(std::ostream& stream)
 {
     using namespace std;
 
+    // Deliberately still GAMEBOY_WIDTH: the savestate format is unchanged, so
+    // states stay compatible in both directions. These three buffers are rebuilt
+    // every scanline, so saving only the native-sized prefix loses nothing.
     stream.write(reinterpret_cast<const char*> (m_pFrameBuffer), GAMEBOY_WIDTH * GAMEBOY_HEIGHT);
     stream.write(reinterpret_cast<const char*> (m_pSpriteXCacheBuffer), sizeof(int) * GAMEBOY_WIDTH * GAMEBOY_HEIGHT);
     stream.write(reinterpret_cast<const char*> (m_pColorCacheBuffer), GAMEBOY_WIDTH * GAMEBOY_HEIGHT);

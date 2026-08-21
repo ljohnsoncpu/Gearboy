@@ -72,6 +72,9 @@ public:
     bool LoadROM(const char* szFilePath, bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported, bool forceGBA = false);
     bool LoadROMFromBuffer(const u8* buffer, int size, bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported, bool forceGBA = false);
     bool GetRuntimeInfo(GB_RuntimeInfo& runtime_info);
+    // SMBDX widescreen research mode; see docs/adr/0003 in the project repo.
+    void SetWideScreen(bool enabled);
+    bool IsWideScreen() const;
     void KeyPressed(Gameboy_Keys key);
     void KeyReleased(Gameboy_Keys key);
     void Pause(bool paused);
@@ -169,6 +172,7 @@ private:
     bool m_bForceDMG;
     bool m_bSGBEnabled;
     bool m_bSGBBorder;
+    bool m_bWideScreen;
     u16* m_pSGBFrameBuffer;
     int m_iRTCUpdateCount;
     RamChangedCallback m_pRamChangedCallback;

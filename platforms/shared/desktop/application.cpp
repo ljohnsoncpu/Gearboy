@@ -103,6 +103,8 @@ int application_init(const ApplicationParams& params)
         return 3;
     }
 
+    emu_set_wide_screen(params.wide_screen);
+
     if (!gui_init())
     {
         Error("Failed to initialize GUI");

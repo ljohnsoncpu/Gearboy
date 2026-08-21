@@ -716,6 +716,11 @@ void emu_color_correction(bool correction)
     gearboy->EnableColorCorrection(correction);
 }
 
+void emu_set_wide_screen(bool enabled)
+{
+    gearboy->SetWideScreen(enabled);
+}
+
 void emu_debug_step_over(void)
 {
     Processor* processor = emu_get_core()->GetProcessor();

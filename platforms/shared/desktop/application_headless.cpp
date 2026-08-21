@@ -58,6 +58,8 @@ int application_headless_init(const ApplicationParams& params)
         return 2;
     }
 
+    emu_set_wide_screen(params.wide_screen);
+
     config_debug.debug = true;
 
     emu_audio_volume(0.0f);
@@ -74,7 +76,10 @@ int application_headless_init(const ApplicationParams& params)
     }
     emu_enable_bootrom_dmg(config_emulator.dmg_bootrom);
     emu_enable_bootrom_gbc(config_emulator.gbc_bootrom);
-    emu_color_correction(config_video.color_correction);
+    // --no-color-correction lets a research capture compare against a
+    // reconstruction without replicating Gearboy's float gamma LUT. It is off by
+    // default, so every existing reference hash is unaffected.
+    emu_color_correction(config_video.color_correction && !params.no_color_correction);
 
     gui_debug_init();
 

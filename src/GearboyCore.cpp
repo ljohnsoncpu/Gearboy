@@ -87,6 +87,7 @@ GearboyCore::GearboyCore()
     m_bForceDMG = false;
     m_bSGBEnabled = true;
     m_bSGBBorder = true;
+    m_bWideScreen = false;
     InitPointer(m_pSGBFrameBuffer);
     m_iRTCUpdateCount = 0;
     m_pixelFormat = GB_PIXEL_RGB565;
@@ -386,6 +387,11 @@ bool GearboyCore::GetRuntimeInfo(GB_RuntimeInfo& runtime_info)
             runtime_info.screen_height = GAMEBOY_HEIGHT;
         }
     }
+    else if (m_bWideScreen)
+    {
+        runtime_info.screen_width = GAMEBOY_WIDE_WIDTH;
+        runtime_info.screen_height = GAMEBOY_HEIGHT;
+    }
     else
     {
         runtime_info.screen_width = GAMEBOY_WIDTH;
@@ -408,12 +414,13 @@ void GearboyCore::RenderFrameBuffer(u16* pFrameBuffer)
     if (m_bCGB)
     {
         const u16* color_frame_buffer = m_pVideo->GetColorFrameBuffer();
+        const int pixels = m_pVideo->GetScreenWidth() * GAMEBOY_HEIGHT;
 
         if (IsValidPointer(color_frame_buffer) && (color_frame_buffer != pFrameBuffer))
-            memcpy(pFrameBuffer, color_frame_buffer, GAMEBOY_WIDTH * GAMEBOY_HEIGHT * sizeof(u16));
+            memcpy(pFrameBuffer, color_frame_buffer, pixels * sizeof(u16));
 
         if (m_bColorCorrectionEnabled)
-            ApplyColorCorrection(pFrameBuffer, GAMEBOY_WIDTH * GAMEBOY_HEIGHT);
+            ApplyColorCorrection(pFrameBuffer, pixels);
 
         return;
     }
@@ -1340,6 +1347,17 @@ void GearboyCore::SetSGBEnabled(bool enabled)
 void GearboyCore::SetSGBBorder(bool enabled)
 {
     m_bSGBBorder = enabled;
+}
+
+void GearboyCore::SetWideScreen(bool enabled)
+{
+    m_bWideScreen = enabled;
+    m_pVideo->SetWideScreen(enabled);
+}
+
+bool GearboyCore::IsWideScreen() const
+{
+    return m_bWideScreen;
 }
 
 void GearboyCore::EnableColorCorrection(bool enabled)

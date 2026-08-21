@@ -88,6 +88,14 @@ int main(int argc, char* argv[])
             {
                 portable = true;
             }
+            else if (strcmp(argv[i], "--wide") == 0)
+            {
+                app_params.wide_screen = true;
+            }
+            else if (strcmp(argv[i], "--no-color-correction") == 0)
+            {
+                app_params.no_color_correction = true;
+            }
             else if (strcmp(argv[i], "--mcp-http-port") == 0)
             {
                 if (i + 1 >= argc || argv[i + 1][0] == '-')
@@ -176,6 +184,8 @@ int main(int argc, char* argv[])
         printf("      --mcp-http-port N       HTTP port for MCP server (default: 7777)\n");
         printf("      --headless              Run without GUI (requires --mcp-stdio or --mcp-http)\n");
         printf("      --portable              Store configuration and user data beside the application\n");
+        printf("      --wide                  Render a 256x144 viewport (SMBDX widescreen research)\n");
+        printf("      --no-color-correction   Disable the GBC color correction LUT\n");
         printf("  -v, --version               Display version information\n");
         printf("  -h, --help                  Display this help message\n");
         return ret;

@@ -40,6 +40,11 @@ public:
     void EnableScreen();
     void DisableScreen();
     void SetSGBTransferMode(bool enabled);
+    // SMBDX widescreen: selects the runtime output width. Native mode leaves
+    // every render path arithmetically identical to upstream.
+    void SetWideScreen(bool enabled);
+    bool IsWideScreen() const;
+    int GetScreenWidth() const;
     bool IsScreenEnabled() const;
     const u8* GetFrameBuffer() const;
     const u16* GetColorFrameBuffer() const;
@@ -62,7 +67,7 @@ public:
 
 private:
     void ScanLine(int line);
-    void RenderBG(int line, int pixel);
+    void RenderBG(int line, int pixel, int pixels_to_render);
     void RenderWindow(int line);
     void RenderSprites(int line);
     void UpdateStatRegister();
@@ -88,6 +93,11 @@ private:
     bool m_bScreenEnabled;
     bool m_bCGB;
     bool m_bSGBTransferMode;
+    // Runtime output width and the left-hand offset of the native 160-pixel
+    // window inside it. Native mode is width GAMEBOY_WIDTH at origin 0.
+    bool m_bWideScreen;
+    int m_iScreenWidth;
+    int m_iViewportOriginX;
     u16 m_CGBSpritePalettes[8][4][2];
     u16 m_CGBBackgroundPalettes[8][4][2];
     bool m_bScanLineTransfered;
