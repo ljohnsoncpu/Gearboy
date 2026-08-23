@@ -104,6 +104,8 @@ EXTERN GearboyCore* emu_get_core(void);
 EXTERN void emu_color_correction(bool correction);
 // SMBDX widescreen research mode; see docs/adr/0003 in the project repo.
 EXTERN void emu_set_wide_screen(bool enabled);
+// SMBDX game adaptation; see docs/adr/0005 in the project repo.
+EXTERN void emu_set_game_adaptation_enabled(bool enabled);
 EXTERN void emu_debug_step_over(void);
 EXTERN void emu_debug_step_into(void);
 EXTERN void emu_debug_step_out(void);

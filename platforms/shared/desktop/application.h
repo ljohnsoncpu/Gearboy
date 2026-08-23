@@ -45,6 +45,9 @@ struct ApplicationParams
     // stays the reference; see docs/adr/0003 in the project repo.
     bool wide_screen = false;
     bool no_color_correction = false;
+    // Render wide but leave a recognised game exactly as the user supplied it;
+    // see docs/adr/0005 in the project repo.
+    bool no_game_adaptation = false;
 };
 
 EXTERN SDL_Window* application_sdl_window;

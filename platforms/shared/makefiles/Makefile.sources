@@ -55,6 +55,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/Audio.cpp \
     $(SRC_DIR)/Cartridge.cpp \
     $(SRC_DIR)/CommonMemoryRule.cpp \
+    $(SRC_DIR)/GameAdaptation.cpp \
     $(SRC_DIR)/GearboyCore.cpp \
     $(SRC_DIR)/Input.cpp \
     $(SRC_DIR)/IORegistersMemoryRule.cpp \

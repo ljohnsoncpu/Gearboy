@@ -96,6 +96,10 @@ int main(int argc, char* argv[])
             {
                 app_params.no_color_correction = true;
             }
+            else if (strcmp(argv[i], "--no-game-adaptation") == 0)
+            {
+                app_params.no_game_adaptation = true;
+            }
             else if (strcmp(argv[i], "--mcp-http-port") == 0)
             {
                 if (i + 1 >= argc || argv[i + 1][0] == '-')
@@ -186,6 +190,7 @@ int main(int argc, char* argv[])
         printf("      --portable              Store configuration and user data beside the application\n");
         printf("      --wide                  Render a 256x144 viewport (SMBDX widescreen research)\n");
         printf("      --no-color-correction   Disable the GBC color correction LUT\n");
+        printf("      --no-game-adaptation    Render wide without adapting a recognised game (SMBDX)\n");
         printf("  -v, --version               Display version information\n");
         printf("  -h, --help                  Display this help message\n");
         return ret;

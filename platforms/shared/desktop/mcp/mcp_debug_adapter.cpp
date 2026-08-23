@@ -723,6 +723,52 @@ json DebugAdapter::GetMediaInfo()
     info["version"] = cart->GetVersion();
     info["valid_rom"] = cart->IsValidROM();
 
+    // Provenance for an emulator that adapts a game in memory (ADR 0005). The
+    // ROM the user supplied is reported by its own SHA-256, and everything this
+    // emulator did to it is reported beside it, so a capture can record both
+    // "which ROM ran" and "what the machine changed about it". A single patched
+    // ROM file used to answer the first question by being hashable; these two
+    // fields answer both without the user having to patch anything.
+    const GameAdaptationState& adaptation = m_core->GetGameAdaptation();
+    info["rom_sha256"] = adaptation.rom_sha256;
+    info["wide_mode"] = m_core->IsWideScreen();
+
+    json adapt;
+    adapt["matched"] = adaptation.matched;
+    // "applied", "wide-mode-disabled", "unrecognised-rom", "site-mismatch",
+    // or "no-rom". Only "applied" means the running game differs from the file.
+    adapt["reason"] = adaptation.reason;
+    adapt["wide_mode"] = adaptation.wide_mode;
+    adapt["enabled"] = adaptation.enabled;
+    adapt["id"] = adaptation.profile_id;
+    adapt["description"] = adaptation.profile_description;
+    adapt["margin_pixels"] = adaptation.margin_pixels;
+    adapt["rom_sha256"] = adaptation.rom_sha256;
+    adapt["adapted_sha256"] = adaptation.adapted_sha256;
+    adapt["adapted_sha256_matches_profile"] = adaptation.adapted_sha256_matches_profile;
+    // Re-read from the live cartridge image on every query, so an adaptation a
+    // reset or a reload undid cannot keep reporting itself as present.
+    adapt["live_verified"] = adaptation.live_verified;
+    adapt["site_count"] = (int)adaptation.applied.size();
+
+    json sites = json::array();
+    for (size_t i = 0; i < adaptation.applied.size(); i++)
+    {
+        const GameAdaptationAppliedSite& applied = adaptation.applied[i];
+        char offset_hex[16];
+        snprintf(offset_hex, sizeof(offset_hex), "%05X", (unsigned int)applied.file_offset);
+        json entry;
+        entry["name"] = applied.name;
+        entry["site"] = applied.site;
+        entry["file_offset"] = (int)applied.file_offset;
+        entry["file_offset_hex"] = offset_hex;
+        entry["from"] = (int)applied.from;
+        entry["to"] = (int)applied.to;
+        sites.push_back(entry);
+    }
+    adapt["sites"] = sites;
+    info["adaptation"] = adapt;
+
     Cartridge::CartridgeTypes type = cart->GetType();
     const char* type_names[] = {
         "ROM Only", "MBC1", "MBC2", "MBC3",

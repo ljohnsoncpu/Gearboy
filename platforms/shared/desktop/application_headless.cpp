@@ -58,6 +58,7 @@ int application_headless_init(const ApplicationParams& params)
         return 2;
     }
 
+    emu_set_game_adaptation_enabled(!params.no_game_adaptation);
     emu_set_wide_screen(params.wide_screen);
 
     config_debug.debug = true;

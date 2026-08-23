@@ -400,7 +400,7 @@ The server exposes tools organized in the following categories:
 - `get_screenshot` - Capture current screen frame as base64 PNG
 
 ### Media & State Management
-- `get_media_info` - Get loaded ROM info (file path, name, MBC type, ROM/RAM size, CGB/SGB flags, battery)
+- `get_media_info` - Get loaded ROM info (file path, name, MBC type, ROM/RAM size, CGB/SGB flags, battery), plus the loaded image's `rom_sha256`, `wide_mode`, and an `adaptation` object describing any in-memory game adaptation this build applied to it (SMBDX; see `docs/adr/0005` in the project repository). The digest is computed over the image as loaded, before anything is written, so it always identifies the file the user supplied; `adaptation.adapted_sha256` identifies what is actually running, `adaptation.sites` lists every byte changed, and `adaptation.live_verified` is re-read from the cartridge image on every call so an adaptation that was undone cannot keep reporting itself as present.
 - `list_recent_media` - List the 10 most recent ROM files opened by Gearboy
 - `load_media` - Load ROM file (.gb, .dmg, .gbc, .cgb, .sgb, .zip). Automatically loads .sym symbol file if present
 - `load_symbols` - Load debug symbols from file (.sym format with 'BANK:ADDRESS LABEL' entries)

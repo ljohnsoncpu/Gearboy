@@ -28,6 +28,7 @@
     <ClCompile Include="..\..\src\audio\Multi_Buffer.cpp" />
     <ClCompile Include="..\..\src\Cartridge.cpp" />
     <ClCompile Include="..\..\src\CommonMemoryRule.cpp" />
+    <ClCompile Include="..\..\src\GameAdaptation.cpp" />
     <ClCompile Include="..\..\src\GearboyCore.cpp" />
     <ClCompile Include="..\..\src\Input.cpp" />
     <ClCompile Include="..\..\src\IORegistersMemoryRule.cpp" />
@@ -143,6 +144,7 @@
     <ClInclude Include="..\..\src\common.h" />
     <ClInclude Include="..\..\src\CommonMemoryRule.h" />
     <ClInclude Include="..\..\src\definitions.h" />
+    <ClInclude Include="..\..\src\GameAdaptation.h" />
     <ClInclude Include="..\..\src\gearboy.h" />
     <ClInclude Include="..\..\src\GearboyCore.h" />
     <ClInclude Include="..\..\src\Input.h" />

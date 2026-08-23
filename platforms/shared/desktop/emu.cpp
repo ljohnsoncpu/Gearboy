@@ -721,6 +721,11 @@ void emu_set_wide_screen(bool enabled)
     gearboy->SetWideScreen(enabled);
 }
 
+void emu_set_game_adaptation_enabled(bool enabled)
+{
+    gearboy->SetGameAdaptationEnabled(enabled);
+}
+
 void emu_debug_step_over(void)
 {
     Processor* processor = emu_get_core()->GetProcessor();

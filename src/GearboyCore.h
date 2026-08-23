@@ -22,6 +22,7 @@
 
 #include "definitions.h"
 #include "Cartridge.h"
+#include "GameAdaptation.h"
 
 class Memory;
 class Processor;
@@ -75,6 +76,15 @@ public:
     // SMBDX widescreen research mode; see docs/adr/0003 in the project repo.
     void SetWideScreen(bool enabled);
     bool IsWideScreen() const;
+    // The game adaptation this emulator applied to the loaded ROM in memory, if
+    // any (ADR 0005). Re-verifies the live cartridge image on every call, so a
+    // caller can tell an adaptation that is still in place from one that a reset
+    // or a reload quietly undid.
+    const GameAdaptationState& GetGameAdaptation();
+    // `--no-game-adaptation`: render wide but leave the game exactly as
+    // supplied. Decided before the ROM is loaded, like wide mode itself.
+    void SetGameAdaptationEnabled(bool enabled);
+    bool IsGameAdaptationEnabled() const;
     void KeyPressed(Gameboy_Keys key);
     void KeyReleased(Gameboy_Keys key);
     void Pause(bool paused);
@@ -132,6 +142,7 @@ private:
     void InitMemoryRules();
     bool AddMemoryRules(Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported);
     void Reset(bool bCGB, bool bGBA);
+    void ApplyGameAdaptation();
     bool SaveState(std::ostream& stream, size_t& size, bool screenshot);
     bool LoadState(std::istream& stream);
     bool LoadStateLegacy(std::istream& stream, size_t size);
@@ -173,6 +184,8 @@ private:
     bool m_bSGBEnabled;
     bool m_bSGBBorder;
     bool m_bWideScreen;
+    bool m_bGameAdaptationEnabled;
+    GameAdaptationState m_GameAdaptation;
     u16* m_pSGBFrameBuffer;
     int m_iRTCUpdateCount;
     RamChangedCallback m_pRamChangedCallback;

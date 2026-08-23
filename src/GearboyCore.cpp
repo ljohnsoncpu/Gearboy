@@ -88,6 +88,7 @@ GearboyCore::GearboyCore()
     m_bSGBEnabled = true;
     m_bSGBBorder = true;
     m_bWideScreen = false;
+    m_bGameAdaptationEnabled = true;
     InitPointer(m_pSGBFrameBuffer);
     m_iRTCUpdateCount = 0;
     m_pixelFormat = GB_PIXEL_RGB565;
@@ -284,6 +285,7 @@ bool GearboyCore::LoadROM(const char* szFilePath, bool forceDMG, Cartridge::Cart
 {
     if (m_pCartridge->LoadFromFile(szFilePath))
     {
+        ApplyGameAdaptation();
         m_bForceDMG = forceDMG;
         Reset(m_bForceDMG ? false : m_pCartridge->IsCGB(), forceGBA);
         m_pMemory->ResetDisassemblerRecords();
@@ -310,6 +312,7 @@ bool GearboyCore::LoadROMFromBuffer(const u8* buffer, int size, bool forceDMG, C
 
     if (m_pCartridge->LoadFromBuffer(buffer, size))
     {
+        ApplyGameAdaptation();
         m_bForceDMG = forceDMG;
         Reset(m_bForceDMG ? false : m_pCartridge->IsCGB(), forceGBA);
         m_pMemory->ResetDisassemblerRecords();
@@ -1351,13 +1354,62 @@ void GearboyCore::SetSGBBorder(bool enabled)
 
 void GearboyCore::SetWideScreen(bool enabled)
 {
+    bool changed = (m_bWideScreen != enabled);
     m_bWideScreen = enabled;
     m_pVideo->SetWideScreen(enabled);
+
+    // A game adaptation is applied once, to the cartridge image, at load time
+    // (ADR 0005): it cannot be undone without a pristine copy of the ROM, and
+    // adapting an already-running game mid-frame would be worse than not
+    // adapting it. Both desktop entry points set the mode before loading a ROM,
+    // so this only reports a toggle a future front-end might introduce.
+    if (changed && m_pCartridge->IsLoadedROM())
+    {
+        Log("Wide mode %s after the ROM was loaded; the game adaptation is "
+            "decided at load time and is unchanged until the next load.",
+            enabled ? "enabled" : "disabled");
+    }
 }
 
 bool GearboyCore::IsWideScreen() const
 {
     return m_bWideScreen;
+}
+
+void GearboyCore::ApplyGameAdaptation()
+{
+    // The distributed artifact is the emulator; the user brings their own
+    // unmodified ROM. Wide mode identifies that image by its SHA-256 and, only
+    // if it recognises it, applies the matching adaptation to the cartridge
+    // buffer in memory (ADR 0005).
+    //
+    // This runs before Reset() and before LoadBank0and1FromROM(), and every
+    // later reset re-copies bank 0 and 1 out of this same buffer, so the
+    // adaptation survives a reset by construction rather than by re-application.
+    GameAdaptation::Apply(
+        m_pCartridge->GetTheROM(), m_pCartridge->GetTotalSize(), m_bWideScreen,
+        m_bGameAdaptationEnabled, m_GameAdaptation);
+}
+
+void GearboyCore::SetGameAdaptationEnabled(bool enabled)
+{
+    m_bGameAdaptationEnabled = enabled;
+}
+
+bool GearboyCore::IsGameAdaptationEnabled() const
+{
+    return m_bGameAdaptationEnabled;
+}
+
+const GameAdaptationState& GearboyCore::GetGameAdaptation()
+{
+    if (m_pCartridge->IsLoadedROM())
+    {
+        GameAdaptation::Verify(
+            m_pCartridge->GetTheROM(), m_pCartridge->GetTotalSize(),
+            m_GameAdaptation);
+    }
+    return m_GameAdaptation;
 }
 
 void GearboyCore::EnableColorCorrection(bool enabled)
