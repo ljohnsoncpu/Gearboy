@@ -913,11 +913,19 @@ void Video::RenderSprites(int line)
             continue;
 
         int sprite_4 = sprite << 2;
-        // OAM X is screen-space, so it shifts with the viewport origin. In M5 the
-        // game still refuses to write OAM outside the native window (the three
-        // cp $B8 clips are an M6 change), so nothing yet appears in the margins.
-        int sprite_x = m_pMemory->Retrieve(0xFE00 + sprite_4 + 1) - 8
-                + m_iViewportOriginX;
+        // OAM X is screen-space, so it shifts with the viewport origin. In wide
+        // mode it is also read as SIGNED above GAMEBOY_WIDE_OAM_X_SIGNED_MIN:
+        // the register is one unsigned byte holding screen_x + 8, so an object
+        // in the left margin writes a wrapped high value rather than a negative
+        // one, and without this it would be drawn at the far right or culled.
+        // The widened clip caps the largest value the game can write at 207 and
+        // the smallest a left-margin sprite needs is 217, so the two ranges are
+        // separated by an unused guard band and cannot be confused. Native mode
+        // keeps the plain unsigned read, byte for byte. See docs/adr/0006.
+        int oam_x = m_pMemory->Retrieve(0xFE00 + sprite_4 + 1);
+        if (m_bWideScreen && (oam_x >= GAMEBOY_WIDE_OAM_X_SIGNED_MIN))
+            oam_x -= 256;
+        int sprite_x = oam_x - 8 + m_iViewportOriginX;
 
         if ((sprite_x < -7) || (sprite_x >= m_iScreenWidth))
             continue;

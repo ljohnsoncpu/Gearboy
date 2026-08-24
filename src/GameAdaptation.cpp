@@ -161,24 +161,30 @@ void Sha256Final(Sha256Context& ctx, u8 digest[32])
 // Bank 00 lives at file offset == address; bank 03 at 0xC000 + (address - 0x4000).
 //------------------------------------------------------------------------------
 
-const GameAdaptationSite k_smbdx_wide256_sites[] = {
-    { "oam-clip-two-entry",          "00:2833", 0x02834, 0xB8, 0xE8 },
-    { "oam-clip-one-entry",          "00:28E0", 0x028E1, 0xB8, 0xE8 },
-    { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xE8 },
-    { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xE0 },
-    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xE0 }
+const GameAdaptationSite k_smbdx_wide224_sites[] = {
+    { "oam-clip-bias-two-entry",     "00:2829", 0x0282A, 0x10, 0x27 },
+    { "oam-clip-two-entry",          "00:2833", 0x02834, 0xB8, 0xEF },
+    { "oam-clip-bias-one-entry",     "00:28D6", 0x028D7, 0x10, 0x27 },
+    { "oam-clip-one-entry",          "00:28E0", 0x028E1, 0xB8, 0xEF },
+    { "oam-clip-bias-player",        "03:73D2", 0x0F3D3, 0x10, 0x27 },
+    { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xEF },
+    { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xD0 },
+    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xD0 },
+    { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E }
 };
 
 const GameAdaptationProfile k_profiles[] = {
     {
-        "smbdx-u-v11-wide256",
-        "Super Mario Bros. Deluxe (U) (V1.1): widen the three OAM clips and both "
-        "object spawn lookaheads by the 48-pixel margin of the 256x144 viewport",
+        "smbdx-u-v11-wide224",
+        "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows to "
+        "screen_x [-47, 192), both object spawn lookaheads to 208, and the "
+        "background stream a second column behind the camera, for the 32-pixel "
+        "margins of the 224x144 viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "b9cfcba617a2307046d858606ab748752b3b919da1f7041bb3442cc88970ef25",
-        48,
-        k_smbdx_wide256_sites,
-        (int)(sizeof(k_smbdx_wide256_sites) / sizeof(k_smbdx_wide256_sites[0]))
+        "63545adc392d6aa6e05dfde55958d828a0eb2453fa18148fa281f9091f30da61",
+        32,
+        k_smbdx_wide224_sites,
+        (int)(sizeof(k_smbdx_wide224_sites) / sizeof(k_smbdx_wide224_sites[0]))
     }
 };
 

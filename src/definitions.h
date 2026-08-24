@@ -113,14 +113,29 @@ typedef void (*RamChangedCallback) (void);
 #define GAMEBOY_WIDTH 160
 #define GAMEBOY_HEIGHT 144
 
-// SMBDX widescreen research mode. 256 is not an arbitrary target: it is exactly
-// the width of the hardware's 32x32 background map, so a 256-pixel viewport
-// shows the resident tile ring exactly once with no wraparound ambiguity. The
-// extra pixels are split evenly, six 8-pixel columns on each side. Native
-// GAMEBOY_WIDTH output must stay byte-identical; see docs/adr/0003.
-#define GAMEBOY_WIDE_WIDTH 256
+// SMBDX widescreen mode. The viewport is 224 pixels: GAMEBOY_WIDTH plus a
+// 32-pixel margin on each side. M5 and M6 used 256 - the full width of the
+// hardware's 32x32 background map - and M7 measured two structural defects that
+// are both consequences of that choice being one step too wide. ADR 0006 records
+// the measurements; in short, a 32-pixel margin is the largest for which the
+// game's own background column streaming keeps the right margin complete at
+// every camera phase (34 measured, 32 chosen for slack), and it is also small
+// enough that every OAM X value a visible sprite needs is distinguishable in one
+// byte. Native GAMEBOY_WIDTH output must stay byte-identical; see docs/adr/0003.
+#define GAMEBOY_WIDE_WIDTH 224
 #define GAMEBOY_WIDE_MARGIN ((GAMEBOY_WIDE_WIDTH - GAMEBOY_WIDTH) / 2)
-#define GAMEBOY_MAX_WIDTH GAMEBOY_WIDE_WIDTH
+#define GAMEBOY_MAX_WIDTH 256
+
+// Hardware OAM X is an unsigned byte holding screen_x + 8, so a sprite in the
+// left margin wraps to a high value instead of going negative. In wide mode the
+// machine reads OAM X as signed above this threshold, which is what lets sprites
+// reach the left margin at all. It is safe only because the widened clip caps
+// the largest OAM X the game can write at 207 (screen_x 191 plus the second
+// entry's +16 bias) while the smallest a left-margin sprite needs is 217
+// (screen_x -47 plus 8, wrapped). 208 through 216 is written by neither, so the
+// two ranges cannot be confused. A 48-pixel margin overlaps by 23 values, which
+// is why ADR 0004 rejected this convention and ADR 0006 can adopt it.
+#define GAMEBOY_WIDE_OAM_X_SIGNED_MIN 208
 
 #define SGB_SCREEN_WIDTH 256
 #define SGB_SCREEN_HEIGHT 224
