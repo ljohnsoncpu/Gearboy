@@ -41,8 +41,10 @@ public:
     void DisableScreen();
     void SetSGBTransferMode(bool enabled);
     // SMBDX widescreen: selects the runtime output width. Native mode leaves
-    // every render path arithmetically identical to upstream.
-    void SetWideScreen(bool enabled);
+    // every render path arithmetically identical to upstream. `width` is
+    // clamped to [GAMEBOY_WIDE_MIN_WIDTH, GAMEBOY_WIDE_MAX_WIDTH]; see project
+    // ADR 0007 for why that maximum is a measurement, not a preference.
+    void SetWideScreen(bool enabled, int width = GAMEBOY_WIDE_WIDTH);
     bool IsWideScreen() const;
     int GetScreenWidth() const;
     bool IsScreenEnabled() const;
@@ -98,6 +100,9 @@ private:
     bool m_bWideScreen;
     int m_iScreenWidth;
     int m_iViewportOriginX;
+    // The OAM X at or above which wide mode reads the byte as signed. Derived
+    // from the margin, because the values it separates both move with it.
+    int m_iWideOamXSignedMin;
     u16 m_CGBSpritePalettes[8][4][2];
     u16 m_CGBBackgroundPalettes[8][4][2];
     bool m_bScanLineTransfered;

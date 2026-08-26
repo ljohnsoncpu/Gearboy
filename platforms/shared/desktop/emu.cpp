@@ -716,9 +716,9 @@ void emu_color_correction(bool correction)
     gearboy->EnableColorCorrection(correction);
 }
 
-void emu_set_wide_screen(bool enabled)
+void emu_set_wide_screen(bool enabled, int width)
 {
-    gearboy->SetWideScreen(enabled);
+    gearboy->SetWideScreen(enabled, width);
 }
 
 void emu_set_game_adaptation_enabled(bool enabled)

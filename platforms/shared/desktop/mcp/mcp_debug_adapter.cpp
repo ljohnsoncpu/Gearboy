@@ -732,6 +732,11 @@ json DebugAdapter::GetMediaInfo()
     const GameAdaptationState& adaptation = m_core->GetGameAdaptation();
     info["rom_sha256"] = adaptation.rom_sha256;
     info["wide_mode"] = m_core->IsWideScreen();
+    // The viewport width this run is actually drawing, so a capture records
+    // which of the supported widths produced it instead of assuming the
+    // default. Native mode reports the native width. See project ADR 0007.
+    info["wide_width"] = m_core->IsWideScreen()
+        ? m_core->GetWideScreenWidth() : GAMEBOY_WIDTH;
 
     json adapt;
     adapt["matched"] = adaptation.matched;

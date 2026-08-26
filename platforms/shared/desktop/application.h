@@ -42,8 +42,11 @@ struct ApplicationParams
     std::string mcp_http_address = "127.0.0.1";
     bool mcp_http_address_set = false;
     // SMBDX widescreen research mode. Off by default so native 160x144 output
-    // stays the reference; see docs/adr/0003 in the project repo.
+    // stays the reference; see docs/adr/0003 in the project repo. The width is
+    // selectable with `--wide=WIDTH` and defaults to the shipped 224; the
+    // supported range is measured rather than chosen, see docs/adr/0007.
     bool wide_screen = false;
+    int wide_width = GAMEBOY_WIDE_WIDTH;
     bool no_color_correction = false;
     // Render wide but leave a recognised game exactly as the user supplied it;
     // see docs/adr/0005 in the project repo.

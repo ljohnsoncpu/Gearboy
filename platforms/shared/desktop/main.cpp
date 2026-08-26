@@ -92,6 +92,25 @@ int main(int argc, char* argv[])
             {
                 app_params.wide_screen = true;
             }
+            else if (strncmp(argv[i], "--wide=", 7) == 0)
+            {
+                // The viewport width is measured, not chosen: 224 is the widest
+                // this game supports, and every supported width is a whole
+                // 8-pixel tile column either side. Rejected here rather than
+                // clamped, so a research run cannot quietly capture at a width
+                // it did not ask for. See project ADR 0007.
+                app_params.wide_screen = true;
+                app_params.wide_width = atoi(argv[i] + 7);
+                if ((app_params.wide_width < GAMEBOY_WIDE_MIN_WIDTH)
+                    || (app_params.wide_width > GAMEBOY_WIDE_MAX_WIDTH)
+                    || (((app_params.wide_width - GAMEBOY_WIDTH)
+                         % GAMEBOY_WIDE_WIDTH_STEP) != 0))
+                {
+                    fprintf(stderr, "Unsupported --wide width \"%s\"; expected "
+                            "176, 192, 208 or 224\n", argv[i] + 7);
+                    return -1;
+                }
+            }
             else if (strcmp(argv[i], "--no-color-correction") == 0)
             {
                 app_params.no_color_correction = true;
@@ -188,7 +207,8 @@ int main(int argc, char* argv[])
         printf("      --mcp-http-port N       HTTP port for MCP server (default: 7777)\n");
         printf("      --headless              Run without GUI (requires --mcp-stdio or --mcp-http)\n");
         printf("      --portable              Store configuration and user data beside the application\n");
-        printf("      --wide                  Render a 256x144 viewport (SMBDX widescreen research)\n");
+        printf("      --wide                  Render a 224x144 viewport (SMBDX widescreen research)\n");
+        printf("      --wide=WIDTH            Render WIDTH x144: 176, 192, 208 or 224 (default 224)\n");
         printf("      --no-color-correction   Disable the GBC color correction LUT\n");
         printf("      --no-game-adaptation    Render wide without adapting a recognised game (SMBDX)\n");
         printf("  -v, --version               Display version information\n");

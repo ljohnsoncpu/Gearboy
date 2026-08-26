@@ -88,6 +88,7 @@ GearboyCore::GearboyCore()
     m_bSGBEnabled = true;
     m_bSGBBorder = true;
     m_bWideScreen = false;
+    m_iWideScreenWidth = GAMEBOY_WIDE_WIDTH;
     m_bGameAdaptationEnabled = true;
     InitPointer(m_pSGBFrameBuffer);
     m_iRTCUpdateCount = 0;
@@ -392,7 +393,7 @@ bool GearboyCore::GetRuntimeInfo(GB_RuntimeInfo& runtime_info)
     }
     else if (m_bWideScreen)
     {
-        runtime_info.screen_width = GAMEBOY_WIDE_WIDTH;
+        runtime_info.screen_width = m_iWideScreenWidth;
         runtime_info.screen_height = GAMEBOY_HEIGHT;
     }
     else
@@ -1352,11 +1353,21 @@ void GearboyCore::SetSGBBorder(bool enabled)
     m_bSGBBorder = enabled;
 }
 
-void GearboyCore::SetWideScreen(bool enabled)
+void GearboyCore::SetWideScreen(bool enabled, int width)
 {
-    bool changed = (m_bWideScreen != enabled);
+    // Clamp here as well as in Video, so the width the core reports and the
+    // width the picture uses cannot disagree - and so the margin the game
+    // adaptation is looked up by is the one actually being drawn. The bounds
+    // are measured; see project ADR 0007.
+    if (width < GAMEBOY_WIDE_MIN_WIDTH)
+        width = GAMEBOY_WIDE_MIN_WIDTH;
+    if (width > GAMEBOY_WIDE_MAX_WIDTH)
+        width = GAMEBOY_WIDE_MAX_WIDTH;
+
+    bool changed = (m_bWideScreen != enabled) || (m_iWideScreenWidth != width);
     m_bWideScreen = enabled;
-    m_pVideo->SetWideScreen(enabled);
+    m_iWideScreenWidth = width;
+    m_pVideo->SetWideScreen(enabled, width);
 
     // A game adaptation is applied once, to the cartridge image, at load time
     // (ADR 0005): it cannot be undone without a pristine copy of the ROM, and
@@ -1376,6 +1387,11 @@ bool GearboyCore::IsWideScreen() const
     return m_bWideScreen;
 }
 
+int GearboyCore::GetWideScreenWidth() const
+{
+    return m_iWideScreenWidth;
+}
+
 void GearboyCore::ApplyGameAdaptation()
 {
     // The distributed artifact is the emulator; the user brings their own
@@ -1388,7 +1404,8 @@ void GearboyCore::ApplyGameAdaptation()
     // adaptation survives a reset by construction rather than by re-application.
     GameAdaptation::Apply(
         m_pCartridge->GetTheROM(), m_pCartridge->GetTotalSize(), m_bWideScreen,
-        m_bGameAdaptationEnabled, m_GameAdaptation);
+        GAMEBOY_WIDE_MARGIN_FOR(m_iWideScreenWidth), m_bGameAdaptationEnabled,
+        m_GameAdaptation);
 }
 
 void GearboyCore::SetGameAdaptationEnabled(bool enabled)

@@ -110,13 +110,18 @@ struct GameAdaptationState
 namespace GameAdaptation
 {
     std::string Sha256Hex(const u8* data, size_t size);
-    const GameAdaptationProfile* FindProfile(const std::string& rom_sha256);
+    // A profile is keyed by the image's digest AND the viewport margin: one
+    // game has one profile per width, because the clip windows and the spawn
+    // frontier are both functions of the width. See project ADR 0007.
+    const GameAdaptationProfile* FindProfile(const std::string& rom_sha256,
+                                             int margin_pixels);
     int ProfileCount();
     const GameAdaptationProfile* ProfileAt(int index);
 
-    // Identify `rom` and, in wide mode only, apply the matching profile in
-    // place. Always fills `out`, including for the cases where nothing is
-    // applied. Never writes to a ROM it has not identified.
+    // Identify `rom` and, in wide mode only, apply the profile matching that
+    // image at `margin_pixels` in place. Always fills `out`, including for the
+    // cases where nothing is applied. Never writes to a ROM it has not
+    // identified, and never writes a profile meant for a different width.
     //
     // `enabled` is the `--no-game-adaptation` escape hatch inverted. It exists
     // so the wide renderer can still be measured against the game exactly as
@@ -124,8 +129,8 @@ namespace GameAdaptation
     // a second ROM file - and so a scenario can be mutation-checked by running
     // it against the unadapted game. It never changes the picture's geometry,
     // only whether the game itself is adapted.
-    void Apply(u8* rom, int size, bool wide_mode, bool enabled,
-               GameAdaptationState& out);
+    void Apply(u8* rom, int size, bool wide_mode, int margin_pixels,
+               bool enabled, GameAdaptationState& out);
 
     // Re-read every applied site and update `state.live_verified`.
     void Verify(const u8* rom, int size, GameAdaptationState& state);

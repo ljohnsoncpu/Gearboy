@@ -161,6 +161,40 @@ void Sha256Final(Sha256Context& ctx, u8 digest[32])
 // Bank 00 lives at file offset == address; bank 03 at 0xC000 + (address - 0x4000).
 //------------------------------------------------------------------------------
 
+const GameAdaptationSite k_smbdx_wide176_sites[] = {
+    { "oam-clip-bias-two-entry",     "00:2829", 0x0282A, 0x10, 0x0F },
+    { "oam-clip-two-entry",          "00:2833", 0x02834, 0xB8, 0xBF },
+    { "oam-clip-bias-one-entry",     "00:28D6", 0x028D7, 0x10, 0x0F },
+    { "oam-clip-one-entry",          "00:28E0", 0x028E1, 0xB8, 0xBF },
+    { "oam-clip-bias-player",        "03:73D2", 0x0F3D3, 0x10, 0x0F },
+    { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xBF },
+    { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xB8 },
+    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xB8 }
+};
+
+const GameAdaptationSite k_smbdx_wide192_sites[] = {
+    { "oam-clip-bias-two-entry",     "00:2829", 0x0282A, 0x10, 0x17 },
+    { "oam-clip-two-entry",          "00:2833", 0x02834, 0xB8, 0xCF },
+    { "oam-clip-bias-one-entry",     "00:28D6", 0x028D7, 0x10, 0x17 },
+    { "oam-clip-one-entry",          "00:28E0", 0x028E1, 0xB8, 0xCF },
+    { "oam-clip-bias-player",        "03:73D2", 0x0F3D3, 0x10, 0x17 },
+    { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xCF },
+    { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xC0 },
+    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xC0 }
+};
+
+const GameAdaptationSite k_smbdx_wide208_sites[] = {
+    { "oam-clip-bias-two-entry",     "00:2829", 0x0282A, 0x10, 0x1F },
+    { "oam-clip-two-entry",          "00:2833", 0x02834, 0xB8, 0xDF },
+    { "oam-clip-bias-one-entry",     "00:28D6", 0x028D7, 0x10, 0x1F },
+    { "oam-clip-one-entry",          "00:28E0", 0x028E1, 0xB8, 0xDF },
+    { "oam-clip-bias-player",        "03:73D2", 0x0F3D3, 0x10, 0x1F },
+    { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xDF },
+    { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xC8 },
+    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xC8 },
+    { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E }
+};
+
 const GameAdaptationSite k_smbdx_wide224_sites[] = {
     { "oam-clip-bias-two-entry",     "00:2829", 0x0282A, 0x10, 0x27 },
     { "oam-clip-two-entry",          "00:2833", 0x02834, 0xB8, 0xEF },
@@ -175,11 +209,47 @@ const GameAdaptationSite k_smbdx_wide224_sites[] = {
 
 const GameAdaptationProfile k_profiles[] = {
     {
+        "smbdx-u-v11-wide176",
+        "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
+        "to screen_x [-23, 168), both object spawn lookaheads to 184, leaving "
+        "the background lookbehind vanilla because one column already covers "
+        "this margin, for the 8-pixel margins of the 176x144 viewport",
+        "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
+        "a64738af996fc24a0d47aa0f531b920b2b0d585e3fc57756a6e10010463d23c7",
+        8,
+        k_smbdx_wide176_sites,
+        (int)(sizeof(k_smbdx_wide176_sites) / sizeof(k_smbdx_wide176_sites[0]))
+    },
+    {
+        "smbdx-u-v11-wide192",
+        "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
+        "to screen_x [-31, 176), both object spawn lookaheads to 192, leaving "
+        "the background lookbehind vanilla because one column already covers "
+        "this margin, for the 16-pixel margins of the 192x144 viewport",
+        "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
+        "6619caebf1e6ef8d02f9391d37c9ce4237e54c962da312066486ee8e21ee7a87",
+        16,
+        k_smbdx_wide192_sites,
+        (int)(sizeof(k_smbdx_wide192_sites) / sizeof(k_smbdx_wide192_sites[0]))
+    },
+    {
+        "smbdx-u-v11-wide208",
+        "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
+        "to screen_x [-39, 184), both object spawn lookaheads to 200, and the "
+        "background stream a second column behind the camera, for the "
+        "24-pixel margins of the 208x144 viewport",
+        "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
+        "5c29e2ef0a3f50cf58ccb7222cea7d51cd19e44d40c26784da8392a2bc021dd9",
+        24,
+        k_smbdx_wide208_sites,
+        (int)(sizeof(k_smbdx_wide208_sites) / sizeof(k_smbdx_wide208_sites[0]))
+    },
+    {
         "smbdx-u-v11-wide224",
-        "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows to "
-        "screen_x [-47, 192), both object spawn lookaheads to 208, and the "
-        "background stream a second column behind the camera, for the 32-pixel "
-        "margins of the 224x144 viewport",
+        "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
+        "to screen_x [-47, 192), both object spawn lookaheads to 208, and the "
+        "background stream a second column behind the camera, for the "
+        "32-pixel margins of the 224x144 viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
         "63545adc392d6aa6e05dfde55958d828a0eb2453fa18148fa281f9091f30da61",
         32,
@@ -224,20 +294,26 @@ const GameAdaptationProfile* GameAdaptation::ProfileAt(int index)
     return &k_profiles[index];
 }
 
-const GameAdaptationProfile* GameAdaptation::FindProfile(const std::string& rom_sha256)
+const GameAdaptationProfile* GameAdaptation::FindProfile(const std::string& rom_sha256,
+                                                         int margin_pixels)
 {
     if (rom_sha256.empty())
         return NULL;
+    // One image now has a profile per viewport width, so a digest alone no
+    // longer identifies an adaptation: a 176-pixel viewport running the 224
+    // profile would clip and spawn for a screen it is not drawing. The margin
+    // is part of the key. See project ADR 0007.
     for (int i = 0; i < k_profile_count; i++)
     {
-        if (rom_sha256 == k_profiles[i].rom_sha256)
+        if ((rom_sha256 == k_profiles[i].rom_sha256)
+            && (margin_pixels == k_profiles[i].margin_pixels))
             return &k_profiles[i];
     }
     return NULL;
 }
 
-void GameAdaptation::Apply(u8* rom, int size, bool wide_mode, bool enabled,
-                           GameAdaptationState& out)
+void GameAdaptation::Apply(u8* rom, int size, bool wide_mode, int margin_pixels,
+                           bool enabled, GameAdaptationState& out)
 {
     out = GameAdaptationState();
 
@@ -269,14 +345,17 @@ void GameAdaptation::Apply(u8* rom, int size, bool wide_mode, bool enabled,
         return;
     }
 
-    const GameAdaptationProfile* profile = FindProfile(out.rom_sha256);
+    const GameAdaptationProfile* profile = FindProfile(out.rom_sha256, margin_pixels);
 
     if (!IsValidPointer(profile))
     {
-        // Widen the picture, but never write to a ROM we have not identified.
+        // Widen the picture, but never write to a ROM we have not identified -
+        // at this width. A recognised image at a width with no profile is the
+        // same situation as an unrecognised image: render wide, change nothing.
         out.reason = "unrecognised-rom";
-        Log("Wide mode: no game adaptation for ROM %s; rendering wide with the "
-            "game unmodified.", out.rom_sha256.c_str());
+        Log("Wide mode: no game adaptation for ROM %s at a %d-pixel margin; "
+            "rendering wide with the game unmodified.", out.rom_sha256.c_str(),
+            margin_pixels);
         return;
     }
 

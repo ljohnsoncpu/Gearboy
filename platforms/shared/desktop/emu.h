@@ -103,7 +103,9 @@ EXTERN void emu_get_info(char* info, int buffer_size);
 EXTERN GearboyCore* emu_get_core(void);
 EXTERN void emu_color_correction(bool correction);
 // SMBDX widescreen research mode; see docs/adr/0003 in the project repo.
-EXTERN void emu_set_wide_screen(bool enabled);
+// `width` selects the viewport and, with it, the game adaptation profile the
+// loaded ROM matches. Clamped to the measured range; see docs/adr/0007.
+EXTERN void emu_set_wide_screen(bool enabled, int width = GAMEBOY_WIDE_WIDTH);
 // SMBDX game adaptation; see docs/adr/0005 in the project repo.
 EXTERN void emu_set_game_adaptation_enabled(bool enabled);
 EXTERN void emu_debug_step_over(void);

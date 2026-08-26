@@ -126,6 +126,22 @@ typedef void (*RamChangedCallback) (void);
 #define GAMEBOY_WIDE_MARGIN ((GAMEBOY_WIDE_WIDTH - GAMEBOY_WIDTH) / 2)
 #define GAMEBOY_MAX_WIDTH 256
 
+// The width is selectable at run time (`--wide=WIDTH`); 224 above is the
+// DEFAULT rather than the only value. The bounds are measured, not stylistic:
+// 224 is the WIDEST this game supports, because its own forward background
+// streaming keeps a margin complete only to 32 pixels and an unsigned OAM X
+// stays unambiguous only to 36. Generalizing can therefore only go narrower,
+// and every supported width is a whole 8-pixel tile column either side.
+//
+// 32 rather than the 34 ADR 0006 recorded: M8 re-measured and found a 34-pixel
+// margin partial at camera 223. So this maximum is not a preference with slack
+// behind it - the shipped width sits exactly on the limit. See project ADR 0007
+// and tools/build/viewport_profiles.py.
+#define GAMEBOY_WIDE_MIN_WIDTH 176
+#define GAMEBOY_WIDE_MAX_WIDTH 224
+#define GAMEBOY_WIDE_WIDTH_STEP 16
+#define GAMEBOY_WIDE_MARGIN_FOR(width) (((width) - GAMEBOY_WIDTH) / 2)
+
 // Hardware OAM X is an unsigned byte holding screen_x + 8, so a sprite in the
 // left margin wraps to a high value instead of going negative. In wide mode the
 // machine reads OAM X as signed above this threshold, which is what lets sprites
@@ -135,7 +151,15 @@ typedef void (*RamChangedCallback) (void);
 // (screen_x -47 plus 8, wrapped). 208 through 216 is written by neither, so the
 // two ranges cannot be confused. A 48-pixel margin overlaps by 23 values, which
 // is why ADR 0004 rejected this convention and ADR 0006 can adopt it.
-#define GAMEBOY_WIDE_OAM_X_SIGNED_MIN 208
+//
+// The threshold moves with the width, because both numbers above do: the
+// largest value a clipped path writes is 159 + margin + 16, and one past that
+// is the first value that can only mean "left margin". The constant below is
+// that expression at the default margin, kept because it is the value every
+// M7/M8 result was measured at.
+#define GAMEBOY_WIDE_OAM_X_SIGNED_MIN_FOR(margin) (GAMEBOY_WIDTH + (margin) + 16)
+#define GAMEBOY_WIDE_OAM_X_SIGNED_MIN \
+    GAMEBOY_WIDE_OAM_X_SIGNED_MIN_FOR(GAMEBOY_WIDE_MARGIN)
 
 #define SGB_SCREEN_WIDTH 256
 #define SGB_SCREEN_HEIGHT 224

@@ -74,8 +74,11 @@ public:
     bool LoadROMFromBuffer(const u8* buffer, int size, bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported, bool forceGBA = false);
     bool GetRuntimeInfo(GB_RuntimeInfo& runtime_info);
     // SMBDX widescreen research mode; see docs/adr/0003 in the project repo.
-    void SetWideScreen(bool enabled);
+    // `width` selects the viewport, clamped to the measured range (ADR 0007),
+    // and with it the game adaptation profile the loaded ROM matches.
+    void SetWideScreen(bool enabled, int width = GAMEBOY_WIDE_WIDTH);
     bool IsWideScreen() const;
+    int GetWideScreenWidth() const;
     // The game adaptation this emulator applied to the loaded ROM in memory, if
     // any (ADR 0005). Re-verifies the live cartridge image on every call, so a
     // caller can tell an adaptation that is still in place from one that a reset
@@ -184,6 +187,7 @@ private:
     bool m_bSGBEnabled;
     bool m_bSGBBorder;
     bool m_bWideScreen;
+    int m_iWideScreenWidth;
     bool m_bGameAdaptationEnabled;
     GameAdaptationState m_GameAdaptation;
     u16* m_pSGBFrameBuffer;

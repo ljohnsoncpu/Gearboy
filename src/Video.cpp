@@ -53,6 +53,7 @@ Video::Video(Memory* pMemory, Processor* pProcessor)
     m_bWideScreen = false;
     m_iScreenWidth = GAMEBOY_WIDTH;
     m_iViewportOriginX = 0;
+    m_iWideOamXSignedMin = GAMEBOY_WIDE_OAM_X_SIGNED_MIN;
 }
 
 Video::~Video()
@@ -73,11 +74,26 @@ void Video::Init()
     Reset(false);
 }
 
-void Video::SetWideScreen(bool enabled)
+void Video::SetWideScreen(bool enabled, int width)
 {
+    // The width is a run-time parameter (project ADR 0007). Anything outside
+    // the measured range is clamped rather than honoured: no renderer change
+    // can make a viewport wider than 224 correct for this game, because the
+    // game's own background streaming does not reach that far and an unsigned
+    // OAM X stops being unambiguous.
+    if (width < GAMEBOY_WIDE_MIN_WIDTH)
+        width = GAMEBOY_WIDE_MIN_WIDTH;
+    if (width > GAMEBOY_WIDE_MAX_WIDTH)
+        width = GAMEBOY_WIDE_MAX_WIDTH;
+
     m_bWideScreen = enabled;
-    m_iScreenWidth = enabled ? GAMEBOY_WIDE_WIDTH : GAMEBOY_WIDTH;
-    m_iViewportOriginX = enabled ? GAMEBOY_WIDE_MARGIN : 0;
+    m_iScreenWidth = enabled ? width : GAMEBOY_WIDTH;
+    m_iViewportOriginX = enabled ? GAMEBOY_WIDE_MARGIN_FOR(width) : 0;
+    // Derived from the margin rather than fixed: the largest OAM X a clipped
+    // path can write moves with the width, and so does the first value that can
+    // only mean "left margin".
+    m_iWideOamXSignedMin =
+        GAMEBOY_WIDE_OAM_X_SIGNED_MIN_FOR(GAMEBOY_WIDE_MARGIN_FOR(width));
 }
 
 bool Video::IsWideScreen() const
@@ -923,7 +939,7 @@ void Video::RenderSprites(int line)
         // separated by an unused guard band and cannot be confused. Native mode
         // keeps the plain unsigned read, byte for byte. See docs/adr/0006.
         int oam_x = m_pMemory->Retrieve(0xFE00 + sprite_4 + 1);
-        if (m_bWideScreen && (oam_x >= GAMEBOY_WIDE_OAM_X_SIGNED_MIN))
+        if (m_bWideScreen && (oam_x >= m_iWideOamXSignedMin))
             oam_x -= 256;
         int sprite_x = oam_x - 8 + m_iViewportOriginX;
 
