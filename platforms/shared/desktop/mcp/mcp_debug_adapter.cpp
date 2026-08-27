@@ -362,8 +362,20 @@ std::vector<u8> DebugAdapter::ReadMemoryArea(int area, u32 offset, size_t size)
     return result;
 }
 
+bool DebugAdapter::IsMemoryAreaWritable(int area)
+{
+    // The CGB palette areas are snapshots gathered into a scratch buffer, not
+    // the emulator's own storage. A write would land in the scratch and be
+    // overwritten by the next read, so it is refused rather than accepted and
+    // silently discarded.
+    return area != MCP_MEMORY_AREA_CGB_BGPAL && area != MCP_MEMORY_AREA_CGB_OBPAL;
+}
+
 void DebugAdapter::WriteMemoryArea(int area, u32 offset, const std::vector<u8>& data)
 {
+    if (!IsMemoryAreaWritable(area))
+        return;
+
     MemoryAreaInfo info = GetMemoryAreaInfo(area);
 
     if (info.data == NULL || offset >= info.size)
@@ -503,6 +515,37 @@ const char* DebugAdapter::GetBreakpointTypeName(int type)
         default:
             return "UNKNOWN";
     }
+}
+
+u8* DebugAdapter::SnapshotCGBPaletteRAM(bool background)
+{
+    if (!m_core->IsCGB())
+        return NULL;
+
+    Video* video = m_core->GetVideo();
+    if (!IsValidPointer(video))
+        return NULL;
+
+    PaletteMatrix palettes = background ? video->GetCGBBackgroundPalettes() : video->GetCGBSpritePalettes();
+    if (!IsValidPointer(palettes))
+        return NULL;
+
+    // Index [1] of each entry is the colour converted to the current pixel
+    // format; index [0] is the BGR555 value BGPD/OBPD actually received, which
+    // is the only one that is palette RAM.
+    u8* out = m_cgb_palette_ram[background ? 0 : 1];
+    for (int palette = 0; palette < 8; palette++)
+    {
+        for (int color = 0; color < 4; color++)
+        {
+            u16 value = (*palettes)[palette][color][0];
+            int offset = (palette * 4 + color) * 2;
+            out[offset] = (u8)(value & 0xFF);
+            out[offset + 1] = (u8)((value >> 8) & 0xFF);
+        }
+    }
+
+    return out;
 }
 
 MemoryAreaInfo DebugAdapter::GetMemoryAreaInfo(int area)
@@ -675,6 +718,18 @@ MemoryAreaInfo DebugAdapter::GetMemoryAreaInfo(int area)
                 info.data = memory->GetWRAM0();
                 info.size = 0x8000;
             }
+            break;
+        case MCP_MEMORY_AREA_CGB_BGPAL:
+            info.name = "CGB_BGPAL";
+            info.data = SnapshotCGBPaletteRAM(true);
+            if (info.data != NULL)
+                info.size = MCP_CGB_PALETTE_RAM_SIZE;
+            break;
+        case MCP_MEMORY_AREA_CGB_OBPAL:
+            info.name = "CGB_OBPAL";
+            info.data = SnapshotCGBPaletteRAM(false);
+            if (info.data != NULL)
+                info.size = MCP_CGB_PALETTE_RAM_SIZE;
             break;
         default:
             break;

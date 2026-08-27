@@ -2217,6 +2217,9 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
             return {{"error", "bytes is required"}};
 
         int area = arguments["area"].get<int>();
+        if (!m_debugAdapter.IsMemoryAreaWritable(area))
+            return {{"error", "Memory area is read-only"}};
+
         std::string offsetStr = arguments["offset"].get<std::string>();
         u32 offset;
         if (!parse_hex_with_prefix(offsetStr, &offset))

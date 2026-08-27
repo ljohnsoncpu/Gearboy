@@ -33,8 +33,15 @@ enum MCP_Memory_Areas
     MCP_MEMORY_AREA_VRAM0 = MEMORY_EDITOR_MAX,
     MCP_MEMORY_AREA_VRAM1,
     MCP_MEMORY_AREA_CGB_WRAM,
+    MCP_MEMORY_AREA_CGB_BGPAL,
+    MCP_MEMORY_AREA_CGB_OBPAL,
     MCP_MEMORY_AREA_MAX
 };
+
+// The CGB palette RAM behind BGPD/OBPD: eight palettes of four BGR555 colours,
+// two bytes each, low byte first. This is the hardware view - the value the
+// game wrote - not the pixel-format colour the renderer draws with.
+#define MCP_CGB_PALETTE_RAM_SIZE 64
 
 struct MemoryAreaInfo
 {
@@ -88,6 +95,9 @@ public:
     DebugAdapter(GearboyCore* core)
     {
         m_core = core;
+        for (int set = 0; set < 2; set++)
+            for (int i = 0; i < MCP_CGB_PALETTE_RAM_SIZE; i++)
+                m_cgb_palette_ram[set][i] = 0;
     }
 
     // Execution control
@@ -115,6 +125,7 @@ public:
     std::vector<MemoryAreaInfo> ListMemoryAreas();
     std::vector<u8> ReadMemoryArea(int area, u32 offset, size_t size);
     void WriteMemoryArea(int area, u32 offset, const std::vector<u8>& data);
+    bool IsMemoryAreaWritable(int area);
 
     // Disassembly (using existing disassembler records)
     std::vector<DisasmLine> GetDisassembly(u16 start_address, u16 end_address, int bank = -1, bool resolve_symbols = false);
@@ -185,9 +196,15 @@ public:
 
 private:
     GearboyCore* m_core;
+    // Repacked on every GetMemoryAreaInfo call: [0] background, [1] sprite.
+    // Gearboy stores each palette entry twice - the raw value the game wrote
+    // and the pixel-format colour - so the hardware view is not contiguous in
+    // the emulator's own storage and has to be gathered into a scratch buffer.
+    u8 m_cgb_palette_ram[2][MCP_CGB_PALETTE_RAM_SIZE];
 
     const char* GetBreakpointTypeName(int type);
     MemoryAreaInfo GetMemoryAreaInfo(int area);
+    u8* SnapshotCGBPaletteRAM(bool background);
 };
 
 #endif /* MCP_DEBUG_ADAPTER_H */
