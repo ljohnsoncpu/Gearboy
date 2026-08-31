@@ -200,7 +200,8 @@ const GameAdaptationSite k_smbdx_wide176_sites[] = {
     { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xBF },
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xB8 },
     { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xB8 },
-    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x68 }
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x68 },
+    { "camera-floor-always",         "03:5CE9", 0x0DCEA, 0x2D, 0x00 }
 };
 
 const GameAdaptationSite k_smbdx_wide192_sites[] = {
@@ -212,7 +213,8 @@ const GameAdaptationSite k_smbdx_wide192_sites[] = {
     { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xCF },
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xC0 },
     { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xC0 },
-    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x70 }
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x70 },
+    { "camera-floor-always",         "03:5CE9", 0x0DCEA, 0x2D, 0x00 }
 };
 
 const GameAdaptationSite k_smbdx_wide208_sites[] = {
@@ -225,7 +227,8 @@ const GameAdaptationSite k_smbdx_wide208_sites[] = {
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xC8 },
     { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xC8 },
     { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E },
-    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x78 }
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x78 },
+    { "camera-floor-always",         "03:5CE9", 0x0DCEA, 0x2D, 0x00 }
 };
 
 const GameAdaptationSite k_smbdx_wide224_sites[] = {
@@ -238,7 +241,8 @@ const GameAdaptationSite k_smbdx_wide224_sites[] = {
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xD0 },
     { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xD0 },
     { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E },
-    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x80 }
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x80 },
+    { "camera-floor-always",         "03:5CE9", 0x0DCEA, 0x2D, 0x00 }
 };
 
 const GameAdaptationProfile k_profiles[] = {
@@ -251,7 +255,7 @@ const GameAdaptationProfile k_profiles[] = {
         "at the picture's edge rather than inside it, for the 8-pixel margins of "
         "the 176x144 viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "e133a228883b984aaff64af9c9b0039ca6960c424fbe7e78510737bb7f38f39f",
+        "171f38bdf9ca8e7b83a008dd7e7af7fff0845cf9ff5f06cdd7dde74c94db2c45",
         8,
         k_smbdx_wide176_sites,
         (int)(sizeof(k_smbdx_wide176_sites) / sizeof(k_smbdx_wide176_sites[0])),
@@ -266,7 +270,7 @@ const GameAdaptationProfile k_profiles[] = {
         "at the picture's edge rather than inside it, for the 16-pixel margins "
         "of the 192x144 viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "3ae1cb0fc780cb65fc8c4964eb9838455e38659f5203a9faeae1b5fde502dc7d",
+        "c5a8bbdacd6c9ba27386706c6eb6d99c2d567e315ed819a2d3daf0d285118396",
         16,
         k_smbdx_wide192_sites,
         (int)(sizeof(k_smbdx_wide192_sites) / sizeof(k_smbdx_wide192_sites[0])),
@@ -281,7 +285,7 @@ const GameAdaptationProfile k_profiles[] = {
         "rather than inside it, for the 24-pixel margins of the 208x144 "
         "viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "d685804821bc6be2d2545e854af73431c44df0d9f5878a3088844b040e1b1696",
+        "4e6de132a4b352a7184c9e340d9c353cb14335e61c2d395ce970657f5f659b4e",
         24,
         k_smbdx_wide208_sites,
         (int)(sizeof(k_smbdx_wide208_sites) / sizeof(k_smbdx_wide208_sites[0])),
@@ -296,7 +300,7 @@ const GameAdaptationProfile k_profiles[] = {
         "rather than inside it, for the 32-pixel margins of the 224x144 "
         "viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "494068a07197a04b57fb1ab6316da521da7c1c0c6abc4beae3984c462b247c77",
+        "b80591263c536e0ed065c13ed08ea9418f1a8fc1ba2922f9a37f57d5bccf0a18",
         32,
         k_smbdx_wide224_sites,
         (int)(sizeof(k_smbdx_wide224_sites) / sizeof(k_smbdx_wide224_sites[0])),
