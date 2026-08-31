@@ -120,6 +120,12 @@ private:
     int m_iWideOamXSignedMin;
     // Read-only addresses of the loaded game's horizontal level bounds, or NULL.
     const GameLevelBounds* m_pLevelBounds;
+    // Mutable level state latched on scanline 0. The game updates these values
+    // during the visible frame; reading them independently on every scanline
+    // can observe a transient snapshot and move one row to another ring page.
+    bool m_bLevelEdgeGameplay;
+    int m_iLevelEdgeCameraX;
+    int m_iLevelEdgeScreenCount;
     // The viewport origin the level-edge clamp last chose on a gameplay row.
     // Sprites use it on every row, including the HUD band, so that one crossing
     // the raster boundary is drawn in one piece rather than in two halves.

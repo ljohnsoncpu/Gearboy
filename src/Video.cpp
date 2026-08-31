@@ -55,6 +55,9 @@ Video::Video(Memory* pMemory, Processor* pProcessor)
     m_iViewportOriginX = 0;
     m_iWideOamXSignedMin = GAMEBOY_WIDE_OAM_X_SIGNED_MIN;
     InitPointer(m_pLevelBounds);
+    m_bLevelEdgeGameplay = false;
+    m_iLevelEdgeCameraX = 0;
+    m_iLevelEdgeScreenCount = 0;
     m_iLevelEdgeOriginX = 0;
 }
 
@@ -96,6 +99,9 @@ void Video::SetWideScreen(bool enabled, int width)
     // only mean "left margin".
     m_iWideOamXSignedMin =
         GAMEBOY_WIDE_OAM_X_SIGNED_MIN_FOR(GAMEBOY_WIDE_MARGIN_FOR(width));
+    m_bLevelEdgeGameplay = false;
+    m_iLevelEdgeCameraX = 0;
+    m_iLevelEdgeScreenCount = 0;
     m_iLevelEdgeOriginX = m_iViewportOriginX;
 }
 
@@ -156,20 +162,10 @@ bool Video::LevelEdgeView(u8 scroll_x, u8 scroll_y, int& origin_x,
     if (!m_bWideScreen || !IsValidPointer(m_pLevelBounds))
         return false;
 
-    // The bounds only describe a loaded level, so a state this game does not
-    // play a level in fills nothing. Failing this way round matters: an
-    // unrecognised state leaves the vanilla picture rather than blanking a menu.
-    u8 state = m_pMemory->Retrieve(m_pLevelBounds->game_state);
-    bool in_gameplay = false;
-    for (int i = 0; i < m_pLevelBounds->gameplay_state_count; i++)
-    {
-        if (state == m_pLevelBounds->gameplay_states[i])
-        {
-            in_gameplay = true;
-            break;
-        }
-    }
-    if (!in_gameplay)
+    // The bounds only describe a loaded level. This flag is latched with the
+    // other mutable inputs on scanline 0, so a state transition cannot turn the
+    // clamp on or off for one row in the middle of the picture.
+    if (!m_bLevelEdgeGameplay)
         return false;
 
     // A scanline the game draws with its HUD raster has no camera of its own:
@@ -182,8 +178,7 @@ bool Video::LevelEdgeView(u8 scroll_x, u8 scroll_y, int& origin_x,
         && (scroll_y == m_pLevelBounds->hud_raster_scy))
         return false;
 
-    int logical_camera = m_pMemory->Retrieve(m_pLevelBounds->camera_x_low)
-        | (m_pMemory->Retrieve(m_pLevelBounds->camera_x_high) << 8);
+    int logical_camera = m_iLevelEdgeCameraX;
 
     // `H_CameraX` is one frame ahead of what is being drawn: VBlank copies its
     // low byte to SCX before the camera update, so SCX is the authority for the
@@ -198,7 +193,7 @@ bool Video::LevelEdgeView(u8 scroll_x, u8 scroll_y, int& origin_x,
     else if ((logical_camera - camera) > 128)
         camera += 0x100;
 
-    int level_width = ((int)m_pMemory->Retrieve(m_pLevelBounds->screen_count) + 1) << 8;
+    int level_width = (m_iLevelEdgeScreenCount + 1) << 8;
 
     // The display camera: the nearest camera whose whole viewport is inside the
     // level. The lower bound is the margin; the upper is where the last visible
@@ -304,6 +299,10 @@ void Video::Reset(bool bCGB)
     m_bCGB = bCGB;
     m_iHideFrames = 0;
     m_IRQ48Signal = 0;
+    m_bLevelEdgeGameplay = false;
+    m_iLevelEdgeCameraX = 0;
+    m_iLevelEdgeScreenCount = 0;
+    m_iLevelEdgeOriginX = m_iViewportOriginX;
 }
 
 void Video::ResetToBootromState()
@@ -833,6 +832,32 @@ void Video::RenderBG(int line, int pixel, int pixels_to_render)
         int tile_pixel_y_2 = tile_pixel_y << 1;
         int tile_pixel_y_flip_2 = (7 - tile_pixel_y) << 1;
         u8 palette = m_pMemory->Retrieve(0xFF47);
+
+        // These are game variables, not atomic video registers. The game
+        // updates them during visible lines; sampling them again on every row
+        // let the clamp observe a transient level-state snapshot (measured as
+        // camera $FFFF/$FFFE and screen count $FF on row 13 at a level start).
+        // That moved exactly one scanline to another background-ring page.
+        // Latch every mutable input once so the whole frame uses one view.
+        // SCX remains the per-scanline authority for the camera's low byte.
+        if (line == 0 && m_bWideScreen && IsValidPointer(m_pLevelBounds))
+        {
+            u8 state = m_pMemory->Retrieve(m_pLevelBounds->game_state);
+            m_bLevelEdgeGameplay = false;
+            for (int i = 0; i < m_pLevelBounds->gameplay_state_count; i++)
+            {
+                if (state == m_pLevelBounds->gameplay_states[i])
+                {
+                    m_bLevelEdgeGameplay = true;
+                    break;
+                }
+            }
+            m_iLevelEdgeCameraX =
+                m_pMemory->Retrieve(m_pLevelBounds->camera_x_low)
+                | (m_pMemory->Retrieve(m_pLevelBounds->camera_x_high) << 8);
+            m_iLevelEdgeScreenCount =
+                m_pMemory->Retrieve(m_pLevelBounds->screen_count);
+        }
 
         // SMBDX widescreen: where this line's viewport sits, and which of its
         // output columns are still outside the level. Computed once per
