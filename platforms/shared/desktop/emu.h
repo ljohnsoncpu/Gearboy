@@ -108,6 +108,7 @@ EXTERN void emu_color_correction(bool correction);
 EXTERN void emu_set_wide_screen(bool enabled, int width = GAMEBOY_WIDE_WIDTH);
 // SMBDX game adaptation; see docs/adr/0005 in the project repo.
 EXTERN void emu_set_game_adaptation_enabled(bool enabled);
+EXTERN void emu_set_level_edge_fill_enabled(bool enabled);
 EXTERN void emu_debug_step_over(void);
 EXTERN void emu_debug_step_into(void);
 EXTERN void emu_debug_step_out(void);

@@ -90,6 +90,7 @@ GearboyCore::GearboyCore()
     m_bWideScreen = false;
     m_iWideScreenWidth = GAMEBOY_WIDE_WIDTH;
     m_bGameAdaptationEnabled = true;
+    m_bLevelEdgeFillEnabled = true;
     InitPointer(m_pSGBFrameBuffer);
     m_iRTCUpdateCount = 0;
     m_pixelFormat = GB_PIXEL_RGB565;
@@ -1406,6 +1407,19 @@ void GearboyCore::ApplyGameAdaptation()
         m_pCartridge->GetTheROM(), m_pCartridge->GetTotalSize(), m_bWideScreen,
         GAMEBOY_WIDE_MARGIN_FOR(m_iWideScreenWidth), m_bGameAdaptationEnabled,
         m_GameAdaptation);
+
+    UpdateLevelEdgeFill();
+}
+
+void GearboyCore::UpdateLevelEdgeFill()
+{
+    // The level-edge fill is a renderer behaviour, not a change to the game, so
+    // it is resolved separately from the site table and by digest and margin
+    // alone (ADR 0009). Re-run wherever the adaptation is, because both depend
+    // on the same three things: a loaded ROM, wide mode, and the width.
+    m_pVideo->SetLevelBounds(GameAdaptation::ResolveLevelEdgeFill(
+        m_bLevelEdgeFillEnabled, GAMEBOY_WIDE_MARGIN_FOR(m_iWideScreenWidth),
+        m_GameAdaptation));
 }
 
 void GearboyCore::SetGameAdaptationEnabled(bool enabled)
@@ -1416,6 +1430,17 @@ void GearboyCore::SetGameAdaptationEnabled(bool enabled)
 bool GearboyCore::IsGameAdaptationEnabled() const
 {
     return m_bGameAdaptationEnabled;
+}
+
+void GearboyCore::SetLevelEdgeFillEnabled(bool enabled)
+{
+    m_bLevelEdgeFillEnabled = enabled;
+    UpdateLevelEdgeFill();
+}
+
+bool GearboyCore::IsLevelEdgeFillEnabled() const
+{
+    return m_bLevelEdgeFillEnabled;
 }
 
 const GameAdaptationState& GearboyCore::GetGameAdaptation()

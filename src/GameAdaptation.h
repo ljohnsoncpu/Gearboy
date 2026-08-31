@@ -58,6 +58,41 @@ struct GameAdaptationSite
     u8 adapted;                // the byte this profile writes
 };
 
+// Where a recognised game keeps its horizontal level bounds (project ADR 0009).
+//
+// A widened viewport can see past the ends of a level: at camera 0 the whole
+// left margin sits at a negative world X, and the background ring holds
+// whatever world column shares its ring slot - level content from 224 pixels
+// ahead at a level start, and, once the game's own backward column streaming
+// underflows below camera 32, bytes read from outside the level map entirely.
+// Neither is a picture of the level, and no clip or streaming constant can make
+// one, because there is nothing there to draw.
+//
+// So the renderer needs one thing the ROM digest alone cannot tell it: which
+// output columns are outside the level right now. These are the addresses that
+// answer that, and they are read - never written. Unlike a site table this is
+// per-game rather than per-width, because a level's extent does not depend on
+// how much of it is on screen.
+struct GameLevelBounds
+{
+    u16 camera_x_low;             // H_CameraXLow
+    u16 camera_x_high;            // H_CameraXHigh
+    u16 screen_count;             // W_SubLvScreenCount; the level is (n + 1) screens
+    u16 game_state;               // H_GameState
+    // The scroll pair a HUD raster forces, or (0x100, 0x100) for a game with no
+    // such band. A scanline drawn with it has no camera of its own - its scroll
+    // is a raster effect - so the level-edge clamp leaves it alone rather than
+    // clamping the status bar against a camera it does not have.
+    u16 hud_raster_scx;
+    u16 hud_raster_scy;
+    // The states in which the three addresses above describe a loaded level.
+    // Outside them the renderer masks nothing, so an unrecognised state can
+    // only ever leave the vanilla picture - never blank a menu or a title
+    // screen.
+    const u8* gameplay_states;
+    int gameplay_state_count;
+};
+
 struct GameAdaptationProfile
 {
     const char* id;
@@ -67,6 +102,7 @@ struct GameAdaptationProfile
     int margin_pixels;
     const GameAdaptationSite* sites;
     int site_count;
+    const GameLevelBounds* level_bounds;
 };
 
 struct GameAdaptationAppliedSite
@@ -98,11 +134,23 @@ struct GameAdaptationState
     // show up here instead of silently running the unadapted game.
     bool live_verified;
     std::vector<GameAdaptationAppliedSite> applied;
+    // The level-edge fill is a RENDERER behaviour keyed to the same recognised
+    // image, and it is deliberately independent of the site table above: it is
+    // reported here because this is where a capture records what the emulator
+    // knows about the game, but `--no-game-adaptation` does not turn it off and
+    // `--no-level-edge-fill` does not turn the site table off. See ADR 0009.
+    bool level_bounds_known;      // the recognised profile carries bounds
+    bool level_edge_fill_enabled; // and `--no-level-edge-fill` was not passed
+    // One of: "no-rom", "wide-mode-disabled", "unrecognised-rom",
+    // "fill-disabled", "active".
+    std::string level_edge_fill_reason;
 
     GameAdaptationState()
         : rom_loaded(false), wide_mode(false), enabled(true), matched(false),
           reason("no-rom"), margin_pixels(0),
-          adapted_sha256_matches_profile(false), live_verified(false)
+          adapted_sha256_matches_profile(false), live_verified(false),
+          level_bounds_known(false), level_edge_fill_enabled(true),
+          level_edge_fill_reason("no-rom")
     {
     }
 };
@@ -134,6 +182,16 @@ namespace GameAdaptation
 
     // Re-read every applied site and update `state.live_verified`.
     void Verify(const u8* rom, int size, GameAdaptationState& state);
+
+    // Decide whether the level-edge fill runs for the state `Apply` produced,
+    // fill in its three fields, and return the bounds the renderer should use
+    // (NULL for "fill nothing"). Deliberately looked up by digest and margin
+    // alone: it does NOT depend on whether the site table was applied, so
+    // `--no-game-adaptation` still fills the edges and a wide scenario can
+    // mutate one lever without moving the other. See project ADR 0009.
+    const GameLevelBounds* ResolveLevelEdgeFill(bool fill_enabled,
+                                                int margin_pixels,
+                                                GameAdaptationState& state);
 }
 
 #endif	/* GAME_ADAPTATION_H */

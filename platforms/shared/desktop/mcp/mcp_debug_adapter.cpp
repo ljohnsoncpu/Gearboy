@@ -829,6 +829,20 @@ json DebugAdapter::GetMediaInfo()
     adapt["sites"] = sites;
     info["adaptation"] = adapt;
 
+    // The level-edge fill (ADR 0009) is reported separately from the site table
+    // because it is a different kind of thing: no byte of the game changes, the
+    // renderer just stops drawing background ring slots that are outside the
+    // level. A capture records whether it was active, so a frame that looks
+    // different from an M5-era one says why.
+    json edges;
+    edges["bounds_known"] = adaptation.level_bounds_known;
+    edges["enabled"] = adaptation.level_edge_fill_enabled;
+    // "active", "fill-disabled", "unrecognised-rom", "wide-mode-disabled" or
+    // "no-rom". Only "active" means margin pixels can be filled.
+    edges["reason"] = adaptation.level_edge_fill_reason;
+    edges["active"] = (adaptation.level_edge_fill_reason == "active");
+    info["level_edge_fill"] = edges;
+
     Cartridge::CartridgeTypes type = cart->GetType();
     const char* type_names[] = {
         "ROM Only", "MBC1", "MBC2", "MBC3",

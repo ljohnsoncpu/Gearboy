@@ -51,6 +51,7 @@ struct ApplicationParams
     // Render wide but leave a recognised game exactly as the user supplied it;
     // see docs/adr/0005 in the project repo.
     bool no_game_adaptation = false;
+    bool no_level_edge_fill = false;
 };
 
 EXTERN SDL_Window* application_sdl_window;

@@ -726,6 +726,11 @@ void emu_set_game_adaptation_enabled(bool enabled)
     gearboy->SetGameAdaptationEnabled(enabled);
 }
 
+void emu_set_level_edge_fill_enabled(bool enabled)
+{
+    gearboy->SetLevelEdgeFillEnabled(enabled);
+}
+
 void emu_debug_step_over(void)
 {
     Processor* processor = emu_get_core()->GetProcessor();

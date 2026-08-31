@@ -104,6 +104,7 @@ int application_init(const ApplicationParams& params)
     }
 
     emu_set_game_adaptation_enabled(!params.no_game_adaptation);
+    emu_set_level_edge_fill_enabled(!params.no_level_edge_fill);
     emu_set_wide_screen(params.wide_screen, params.wide_width);
 
     if (!gui_init())

@@ -161,6 +161,36 @@ void Sha256Final(Sha256Context& ctx, u8 digest[32])
 // Bank 00 lives at file offset == address; bank 03 at 0xC000 + (address - 0x4000).
 //------------------------------------------------------------------------------
 
+// The horizontal level bounds of Super Mario Bros. Deluxe (U) (V1.1), for the
+// level-edge fill (ADR 0009). Read-only, and per-game rather than per-width.
+//
+// `H_CameraXLow`/`H_CameraXHigh` ($FFB8/$FFB9) are the confirmed authoritative
+// camera (project M2). `W_SubLvScreenCount` ($C161) is level header byte 00,
+// written at `00:31A3`; a sublevel is `count + 1` screens of 256 pixels, which
+// is the same bound `background_reconstruction.expected_entry` uses to decide a
+// world column is outside the level. `H_GameState` ($FFB5) gates all three: the
+// two values below are the only states this project has ever captured a loaded
+// level in - `$0B` one-player and `$36` You vs. Boo - measured across every
+// gameplay checkpoint in `artifacts/scenarios`.
+const u8 k_smbdx_gameplay_states[] = { 0x0B, 0x36 };
+
+// The HUD band is drawn with SCX and SCY forced to 0 - `VBlankInterrupt` writes
+// them and arms `LYC` = $07 at `00:0C83`-`00:0C8B`, and the STAT handler
+// restores the camera pair at `00:0DED`-`00:0DF3`. SCY 0 identifies those rows
+// on its own, because `H_CameraY` is clamped to `[$38, $70]` by two independent
+// copies of the same bound and can never be zero; SCX 0 is required as well
+// only so the pair reads as the raster signature it is.
+const GameLevelBounds k_smbdx_level_bounds = {
+    0xFFB8,     // H_CameraXLow
+    0xFFB9,     // H_CameraXHigh
+    0xC161,     // W_SubLvScreenCount
+    0xFFB5,     // H_GameState
+    0x00,       // HUD raster SCX
+    0x00,       // HUD raster SCY
+    k_smbdx_gameplay_states,
+    (int)(sizeof(k_smbdx_gameplay_states) / sizeof(k_smbdx_gameplay_states[0]))
+};
+
 const GameAdaptationSite k_smbdx_wide176_sites[] = {
     { "oam-clip-bias-two-entry",     "00:2829", 0x0282A, 0x10, 0x0F },
     { "oam-clip-two-entry",          "00:2833", 0x02834, 0xB8, 0xBF },
@@ -169,7 +199,8 @@ const GameAdaptationSite k_smbdx_wide176_sites[] = {
     { "oam-clip-bias-player",        "03:73D2", 0x0F3D3, 0x10, 0x0F },
     { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xBF },
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xB8 },
-    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xB8 }
+    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xB8 },
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x68 }
 };
 
 const GameAdaptationSite k_smbdx_wide192_sites[] = {
@@ -180,7 +211,8 @@ const GameAdaptationSite k_smbdx_wide192_sites[] = {
     { "oam-clip-bias-player",        "03:73D2", 0x0F3D3, 0x10, 0x17 },
     { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xCF },
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xC0 },
-    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xC0 }
+    { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xC0 },
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x70 }
 };
 
 const GameAdaptationSite k_smbdx_wide208_sites[] = {
@@ -192,7 +224,8 @@ const GameAdaptationSite k_smbdx_wide208_sites[] = {
     { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xDF },
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xC8 },
     { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xC8 },
-    { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E }
+    { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E },
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x78 }
 };
 
 const GameAdaptationSite k_smbdx_wide224_sites[] = {
@@ -204,7 +237,8 @@ const GameAdaptationSite k_smbdx_wide224_sites[] = {
     { "oam-clip-player",             "03:73DD", 0x0F3DE, 0xB8, 0xEF },
     { "spawn-lookahead-level-load",  "00:2AD0", 0x02AD1, 0xB0, 0xD0 },
     { "spawn-lookahead-per-frame",   "00:2C8D", 0x02C8E, 0xB0, 0xD0 },
-    { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E }
+    { "bg-stream-lookbehind",        "00:3695", 0x03696, 0x0F, 0x0E },
+    { "player-back-scroll-wall",     "03:6472", 0x0E473, 0x60, 0x80 }
 };
 
 const GameAdaptationProfile k_profiles[] = {
@@ -213,48 +247,60 @@ const GameAdaptationProfile k_profiles[] = {
         "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
         "to screen_x [-23, 168), both object spawn lookaheads to 184, leaving "
         "the background lookbehind vanilla because one column already covers "
-        "this margin, for the 8-pixel margins of the 176x144 viewport",
+        "this margin, and the player back-scroll wall to 104 pixels so he stops "
+        "at the picture's edge rather than inside it, for the 8-pixel margins of "
+        "the 176x144 viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "a64738af996fc24a0d47aa0f531b920b2b0d585e3fc57756a6e10010463d23c7",
+        "e133a228883b984aaff64af9c9b0039ca6960c424fbe7e78510737bb7f38f39f",
         8,
         k_smbdx_wide176_sites,
-        (int)(sizeof(k_smbdx_wide176_sites) / sizeof(k_smbdx_wide176_sites[0]))
+        (int)(sizeof(k_smbdx_wide176_sites) / sizeof(k_smbdx_wide176_sites[0])),
+        &k_smbdx_level_bounds
     },
     {
         "smbdx-u-v11-wide192",
         "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
         "to screen_x [-31, 176), both object spawn lookaheads to 192, leaving "
         "the background lookbehind vanilla because one column already covers "
-        "this margin, for the 16-pixel margins of the 192x144 viewport",
+        "this margin, and the player back-scroll wall to 112 pixels so he stops "
+        "at the picture's edge rather than inside it, for the 16-pixel margins "
+        "of the 192x144 viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "6619caebf1e6ef8d02f9391d37c9ce4237e54c962da312066486ee8e21ee7a87",
+        "3ae1cb0fc780cb65fc8c4964eb9838455e38659f5203a9faeae1b5fde502dc7d",
         16,
         k_smbdx_wide192_sites,
-        (int)(sizeof(k_smbdx_wide192_sites) / sizeof(k_smbdx_wide192_sites[0]))
+        (int)(sizeof(k_smbdx_wide192_sites) / sizeof(k_smbdx_wide192_sites[0])),
+        &k_smbdx_level_bounds
     },
     {
         "smbdx-u-v11-wide208",
         "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
         "to screen_x [-39, 184), both object spawn lookaheads to 200, and the "
-        "background stream a second column behind the camera, for the "
-        "24-pixel margins of the 208x144 viewport",
+        "background stream a second column behind the camera, and the player "
+        "back-scroll wall to 120 pixels so he stops at the picture's edge "
+        "rather than inside it, for the 24-pixel margins of the 208x144 "
+        "viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "5c29e2ef0a3f50cf58ccb7222cea7d51cd19e44d40c26784da8392a2bc021dd9",
+        "d685804821bc6be2d2545e854af73431c44df0d9f5878a3088844b040e1b1696",
         24,
         k_smbdx_wide208_sites,
-        (int)(sizeof(k_smbdx_wide208_sites) / sizeof(k_smbdx_wide208_sites[0]))
+        (int)(sizeof(k_smbdx_wide208_sites) / sizeof(k_smbdx_wide208_sites[0])),
+        &k_smbdx_level_bounds
     },
     {
         "smbdx-u-v11-wide224",
         "Super Mario Bros. Deluxe (U) (V1.1): move the three OAM clip windows "
         "to screen_x [-47, 192), both object spawn lookaheads to 208, and the "
-        "background stream a second column behind the camera, for the "
-        "32-pixel margins of the 224x144 viewport",
+        "background stream a second column behind the camera, and the player "
+        "back-scroll wall to 128 pixels so he stops at the picture's edge "
+        "rather than inside it, for the 32-pixel margins of the 224x144 "
+        "viewport",
         "db81dd4acbd0c7a3b9004f169ee278450c764c842ae777abd28073fbedf4078b",
-        "63545adc392d6aa6e05dfde55958d828a0eb2453fa18148fa281f9091f30da61",
+        "494068a07197a04b57fb1ab6316da521da7c1c0c6abc4beae3984c462b247c77",
         32,
         k_smbdx_wide224_sites,
-        (int)(sizeof(k_smbdx_wide224_sites) / sizeof(k_smbdx_wide224_sites[0]))
+        (int)(sizeof(k_smbdx_wide224_sites) / sizeof(k_smbdx_wide224_sites[0])),
+        &k_smbdx_level_bounds
     }
 };
 
@@ -432,4 +478,51 @@ void GameAdaptation::Verify(const u8* rom, int size, GameAdaptationState& state)
         }
     }
     state.live_verified = verified;
+}
+
+const GameLevelBounds* GameAdaptation::ResolveLevelEdgeFill(
+    bool fill_enabled, int margin_pixels, GameAdaptationState& state)
+{
+    state.level_bounds_known = false;
+    state.level_edge_fill_enabled = fill_enabled;
+
+    if (!state.rom_loaded)
+    {
+        state.level_edge_fill_reason = "no-rom";
+        return NULL;
+    }
+
+    if (!state.wide_mode)
+    {
+        // Native mode never fills: its viewport cannot see past a level's end.
+        state.level_edge_fill_reason = "wide-mode-disabled";
+        return NULL;
+    }
+
+    const GameAdaptationProfile* profile = FindProfile(state.rom_sha256, margin_pixels);
+
+    if (!IsValidPointer(profile) || !IsValidPointer(profile->level_bounds))
+    {
+        // Same rule as the site table: a ROM this table has not identified gets
+        // the wide renderer and nothing else. Guessing where an unknown game
+        // keeps its camera would paint over a picture we cannot read.
+        state.level_edge_fill_reason = "unrecognised-rom";
+        return NULL;
+    }
+
+    state.level_bounds_known = true;
+
+    if (!fill_enabled)
+    {
+        // --no-level-edge-fill: the mutation lever. Renders wide with the ring
+        // shown raw at a level's edges, which is what every capture before
+        // ADR 0009 recorded.
+        state.level_edge_fill_reason = "fill-disabled";
+        Log("Wide mode: level-edge fill disabled by request; the background ring "
+            "is shown unmasked outside the level.");
+        return NULL;
+    }
+
+    state.level_edge_fill_reason = "active";
+    return profile->level_bounds;
 }

@@ -54,6 +54,8 @@ Video::Video(Memory* pMemory, Processor* pProcessor)
     m_iScreenWidth = GAMEBOY_WIDTH;
     m_iViewportOriginX = 0;
     m_iWideOamXSignedMin = GAMEBOY_WIDE_OAM_X_SIGNED_MIN;
+    InitPointer(m_pLevelBounds);
+    m_iLevelEdgeOriginX = 0;
 }
 
 Video::~Video()
@@ -94,6 +96,7 @@ void Video::SetWideScreen(bool enabled, int width)
     // only mean "left margin".
     m_iWideOamXSignedMin =
         GAMEBOY_WIDE_OAM_X_SIGNED_MIN_FOR(GAMEBOY_WIDE_MARGIN_FOR(width));
+    m_iLevelEdgeOriginX = m_iViewportOriginX;
 }
 
 bool Video::IsWideScreen() const
@@ -104,6 +107,144 @@ bool Video::IsWideScreen() const
 int Video::GetScreenWidth() const
 {
     return m_iScreenWidth;
+}
+
+void Video::SetLevelBounds(const GameLevelBounds* bounds)
+{
+    m_pLevelBounds = bounds;
+}
+
+bool Video::HasLevelBounds() const
+{
+    return IsValidPointer(m_pLevelBounds);
+}
+
+bool Video::LevelEdgeView(u8 scroll_x, u8 scroll_y, int& origin_x,
+                          int& left_end, int& right_start) const
+{
+    // The widened viewport can point at world columns the level does not have.
+    // Nothing in VRAM says so - the background map is a 256-pixel ring with no
+    // notion of where a level starts or stops, so a slot outside the level holds
+    // whatever was last written to it: level content from elsewhere in the ring
+    // at a level start, or, below camera 32, bytes the game's own backward
+    // streaming read from outside the level map. Both are stale rather than
+    // wrong for the ring; they are simply not a picture of anywhere the player
+    // can be. See project ADR 0009.
+    //
+    // The answer is to stop looking there. This computes a DISPLAY CAMERA - the
+    // game's own camera pushed just far enough inside the level that the whole
+    // 224-pixel viewport fits - and returns the viewport origin that presents
+    // it. Nothing about the game changes: the camera it plays by is untouched,
+    // and only where the picture is taken from moves. At a level start the
+    // effect is the one the original has anyway - the level's first column sits
+    // against the screen's left edge and the view holds still while the player
+    // walks in, then scrolls normally once the camera passes the margin.
+    //
+    // The content that needs is always resident. While the game camera is below
+    // the margin the display camera is pinned AT the margin, so the view is a
+    // fixed world 0..223 - inside the world 0..255 every level load fills the
+    // ring with, and never the ring slots the backward streaming underflow
+    // writes to.
+    //
+    // `left_end`/`right_start` are the residual: anything still outside the
+    // level after the shift, which is filled with the background colour. It is
+    // zero whenever the camera is at rest, and a pixel or two while it moves.
+    origin_x = m_iViewportOriginX;
+    left_end = 0;
+    right_start = m_iScreenWidth;
+
+    if (!m_bWideScreen || !IsValidPointer(m_pLevelBounds))
+        return false;
+
+    // The bounds only describe a loaded level, so a state this game does not
+    // play a level in fills nothing. Failing this way round matters: an
+    // unrecognised state leaves the vanilla picture rather than blanking a menu.
+    u8 state = m_pMemory->Retrieve(m_pLevelBounds->game_state);
+    bool in_gameplay = false;
+    for (int i = 0; i < m_pLevelBounds->gameplay_state_count; i++)
+    {
+        if (state == m_pLevelBounds->gameplay_states[i])
+        {
+            in_gameplay = true;
+            break;
+        }
+    }
+    if (!in_gameplay)
+        return false;
+
+    // A scanline the game draws with its HUD raster has no camera of its own:
+    // SCX and SCY are both forced to zero for those rows and restored at LY 7.
+    // Clamping them against a camera they are not drawn with would move the
+    // status bar - and, because the forced scroll always resolves to the page
+    // boundary, would have moved it on EVERY frame rather than only at a
+    // level's edge. They keep the vanilla wide picture, margins and all.
+    if ((scroll_x == m_pLevelBounds->hud_raster_scx)
+        && (scroll_y == m_pLevelBounds->hud_raster_scy))
+        return false;
+
+    int logical_camera = m_pMemory->Retrieve(m_pLevelBounds->camera_x_low)
+        | (m_pMemory->Retrieve(m_pLevelBounds->camera_x_high) << 8);
+
+    // `H_CameraX` is one frame ahead of what is being drawn: VBlank copies its
+    // low byte to SCX before the camera update, so SCX is the authority for the
+    // frame on screen. Take the low byte from this scanline's own SCX and the
+    // page from the logical camera, choosing the congruent page nearest it -
+    // which is also what makes the HUD band come out right, because those seven
+    // scanlines are drawn with SCX forced to 0 and land on the page boundary.
+    int page = logical_camera & ~0xFF;
+    int camera = page + (int)scroll_x;
+    if ((camera - logical_camera) > 128)
+        camera -= 0x100;
+    else if ((logical_camera - camera) > 128)
+        camera += 0x100;
+
+    int level_width = ((int)m_pMemory->Retrieve(m_pLevelBounds->screen_count) + 1) << 8;
+
+    // The display camera: the nearest camera whose whole viewport is inside the
+    // level. The lower bound is the margin; the upper is where the last visible
+    // column is the level's last. A level narrower than the viewport would put
+    // the two the wrong way round, so the low bound wins - it cannot happen
+    // here, since the narrowest sublevel is one 256-pixel screen and the widest
+    // viewport is 224, but a clamp that can inverse is a clamp that will.
+    int display_low = m_iViewportOriginX;
+    int display_high = level_width - GAMEBOY_WIDTH - m_iViewportOriginX;
+    if (display_high < display_low)
+        display_high = display_low;
+
+    int display_camera = camera;
+    if (display_camera < display_low)
+        display_camera = display_low;
+    else if (display_camera > display_high)
+        display_camera = display_high;
+
+    // Presenting a different camera IS moving the viewport origin, and the two
+    // have to move together or the background and the sprites would part
+    // company. The window layer is deliberately left alone: the HUD is a
+    // screen-space overlay, and a status bar that slid about at a level edge
+    // would be the opposite of what this is for.
+    origin_x = m_iViewportOriginX - (display_camera - camera);
+
+    // Output column x now shows world column `camera + x - origin_x`.
+    int first_inside = origin_x - camera;
+    int first_outside = origin_x + level_width - camera;
+
+    // Clamped to the margins on purpose: the native window is what every native
+    // and native-window assertion in this project compares, and the game's own
+    // camera clamp already keeps it inside the level. A bounds read that went
+    // wrong therefore cannot reach the 160 pixels the game itself draws.
+    if (first_inside < 0)
+        first_inside = 0;
+    if (first_inside > m_iViewportOriginX)
+        first_inside = m_iViewportOriginX;
+    int native_end = m_iViewportOriginX + GAMEBOY_WIDTH;
+    if (first_outside < native_end)
+        first_outside = native_end;
+    if (first_outside > m_iScreenWidth)
+        first_outside = m_iScreenWidth;
+
+    left_end = first_inside;
+    right_start = first_outside;
+    return true;
 }
 
 void Video::SetTraceLogger(TraceLogger* pTraceLogger)
@@ -693,14 +834,53 @@ void Video::RenderBG(int line, int pixel, int pixels_to_render)
         int tile_pixel_y_flip_2 = (7 - tile_pixel_y) << 1;
         u8 palette = m_pMemory->Retrieve(0xFF47);
 
+        // SMBDX widescreen: where this line's viewport sits, and which of its
+        // output columns are still outside the level. Computed once per
+        // scanline; the pixel loop only compares.
+        //
+        // LevelEdgeView returns false for a HUD-raster scanline, which is what
+        // keeps the status bar out of it; see the comment there.
+        int origin_x = m_iViewportOriginX;
+        int level_left_end = 0;
+        int level_right_start = m_iScreenWidth;
+        bool fill_edges = LevelEdgeView(
+            scroll_x, scroll_y, origin_x, level_left_end, level_right_start);
+        if (fill_edges)
+        {
+            // Latched from the gameplay rows, because sprites take this origin
+            // on every row - including the HUD band, which has no camera to
+            // derive one from and where a sprite must not be torn in two.
+            m_iLevelEdgeOriginX = origin_x;
+        }
+
         for (int offset_x = offset_x_init; offset_x < offset_x_end; offset_x++)
         {
             int screen_pixel_x = (screen_tile << 3) + offset_x;
-            // The native 160-pixel window sits at m_iViewportOriginX inside the
-            // output row, so the map coordinate is shifted left by that origin.
+
+            if (fill_edges
+                && ((screen_pixel_x < level_left_end)
+                    || (screen_pixel_x >= level_right_start)))
+            {
+                // Outside the level: paint the background colour rather than a
+                // ring slot that is a picture of somewhere else. Colour index 0
+                // with no priority bit, so sprites still composite normally over
+                // it - the player can stand in the margin and be drawn there.
+                int index = line_width + screen_pixel_x;
+                m_pColorCacheBuffer[index] = 0;
+                if (m_bCGB)
+                    m_pColorFrameBuffer[index] = m_CGBBackgroundPalettes[0][0][1];
+                else
+                    m_pColorFrameBuffer[index] = m_pFrameBuffer[index] = palette & 0x03;
+                continue;
+            }
+
+            // The native 160-pixel window sits at `origin_x` inside the output
+            // row, so the map coordinate is shifted left by that origin. That is
+            // m_iViewportOriginX everywhere except at a level's edges, where
+            // LevelEdgeView moves it to present a camera the level can fill.
             // map_pixel_x is a u8: it wraps modulo the 256-pixel map, which is
             // exactly why a 256-wide viewport walks the ring once and no more.
-            u8 map_pixel_x = screen_pixel_x - m_iViewportOriginX + scroll_x;
+            u8 map_pixel_x = screen_pixel_x - origin_x + scroll_x;
             int map_tile_x = map_pixel_x >> 3;
             int map_tile_offset_x = map_pixel_x & 0x7;
             u16 map_tile_addr = map_start_addr + line_scrolled_32 + map_tile_x;
@@ -902,6 +1082,14 @@ void Video::RenderSprites(int line)
     int sprite_height = IsSetBit(lcdc, 2) ? 16 : 8;
     int line_width = (line * m_iScreenWidth);
 
+    // Sprites are positioned against the same viewport the background is drawn
+    // with, or a level-edge shift would leave the player hanging off the terrain
+    // (ADR 0009). RenderBG latches that origin from the gameplay rows, and
+    // sprites take it on EVERY row: a sprite that crosses the HUD raster
+    // boundary has to be drawn in one piece, and the seven rows above it have no
+    // camera of their own to be positioned against.
+    int origin_x = m_bWideScreen ? m_iLevelEdgeOriginX : m_iViewportOriginX;
+
     bool visible_sprites[40];
     int sprite_limit = 0;
 
@@ -941,7 +1129,7 @@ void Video::RenderSprites(int line)
         int oam_x = m_pMemory->Retrieve(0xFE00 + sprite_4 + 1);
         if (m_bWideScreen && (oam_x >= m_iWideOamXSignedMin))
             oam_x -= 256;
-        int sprite_x = oam_x - 8 + m_iViewportOriginX;
+        int sprite_x = oam_x - 8 + origin_x;
 
         if ((sprite_x < -7) || (sprite_x >= m_iScreenWidth))
             continue;

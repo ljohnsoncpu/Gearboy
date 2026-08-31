@@ -119,6 +119,13 @@ int main(int argc, char* argv[])
             {
                 app_params.no_game_adaptation = true;
             }
+            else if (strcmp(argv[i], "--no-level-edge-fill") == 0)
+            {
+                // Render wide but show the background ring raw where the
+                // viewport reaches past the ends of a level, as every capture
+                // before ADR 0009 did. The mutation lever for that fill.
+                app_params.no_level_edge_fill = true;
+            }
             else if (strcmp(argv[i], "--mcp-http-port") == 0)
             {
                 if (i + 1 >= argc || argv[i + 1][0] == '-')
@@ -211,6 +218,7 @@ int main(int argc, char* argv[])
         printf("      --wide=WIDTH            Render WIDTH x144: 176, 192, 208 or 224 (default 224)\n");
         printf("      --no-color-correction   Disable the GBC color correction LUT\n");
         printf("      --no-game-adaptation    Render wide without adapting a recognised game (SMBDX)\n");
+        printf("      --no-level-edge-fill    Render wide without filling the margin outside a level (SMBDX)\n");
         printf("  -v, --version               Display version information\n");
         printf("  -h, --help                  Display this help message\n");
         return ret;

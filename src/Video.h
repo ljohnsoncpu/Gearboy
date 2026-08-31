@@ -22,6 +22,7 @@
 
 #include "definitions.h"
 #include "TraceLogger.h"
+#include "GameAdaptation.h"
 
 class Memory;
 class Processor;
@@ -47,6 +48,13 @@ public:
     void SetWideScreen(bool enabled, int width = GAMEBOY_WIDE_WIDTH);
     bool IsWideScreen() const;
     int GetScreenWidth() const;
+    // SMBDX widescreen: where the recognised game keeps its horizontal level
+    // bounds, or NULL to fill nothing. With bounds, wide mode paints the
+    // background colour over any MARGIN pixel whose world column is outside the
+    // level instead of showing the background ring slot that happens to share
+    // its position. The native 160-pixel window is never touched. ADR 0009.
+    void SetLevelBounds(const GameLevelBounds* bounds);
+    bool HasLevelBounds() const;
     bool IsScreenEnabled() const;
     const u8* GetFrameBuffer() const;
     const u16* GetColorFrameBuffer() const;
@@ -70,6 +78,13 @@ public:
 private:
     void ScanLine(int line);
     void RenderBG(int line, int pixel, int pixels_to_render);
+    // Where this scanline's viewport sits and what of it is still outside the
+    // level: `origin_x` is the viewport origin to draw the background and the
+    // sprites with, and `[left_end, right_start)` the output columns inside the
+    // level. Returns false - leaving the plain viewport origin and nothing to
+    // fill - for every native frame and every game with no bounds. ADR 0009.
+    bool LevelEdgeView(u8 scroll_x, u8 scroll_y, int& origin_x,
+                       int& left_end, int& right_start) const;
     void RenderWindow(int line);
     void RenderSprites(int line);
     void UpdateStatRegister();
@@ -103,6 +118,12 @@ private:
     // The OAM X at or above which wide mode reads the byte as signed. Derived
     // from the margin, because the values it separates both move with it.
     int m_iWideOamXSignedMin;
+    // Read-only addresses of the loaded game's horizontal level bounds, or NULL.
+    const GameLevelBounds* m_pLevelBounds;
+    // The viewport origin the level-edge clamp last chose on a gameplay row.
+    // Sprites use it on every row, including the HUD band, so that one crossing
+    // the raster boundary is drawn in one piece rather than in two halves.
+    int m_iLevelEdgeOriginX;
     u16 m_CGBSpritePalettes[8][4][2];
     u16 m_CGBBackgroundPalettes[8][4][2];
     bool m_bScanLineTransfered;

@@ -88,6 +88,12 @@ public:
     // supplied. Decided before the ROM is loaded, like wide mode itself.
     void SetGameAdaptationEnabled(bool enabled);
     bool IsGameAdaptationEnabled() const;
+    // `--no-level-edge-fill`: render wide without masking the margin where it
+    // falls outside the level (ADR 0009). Independent of the adaptation lever
+    // above - one is a change to the game, the other to the picture - so a
+    // scenario can mutate either on its own.
+    void SetLevelEdgeFillEnabled(bool enabled);
+    bool IsLevelEdgeFillEnabled() const;
     void KeyPressed(Gameboy_Keys key);
     void KeyReleased(Gameboy_Keys key);
     void Pause(bool paused);
@@ -146,6 +152,7 @@ private:
     bool AddMemoryRules(Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported);
     void Reset(bool bCGB, bool bGBA);
     void ApplyGameAdaptation();
+    void UpdateLevelEdgeFill();
     bool SaveState(std::ostream& stream, size_t& size, bool screenshot);
     bool LoadState(std::istream& stream);
     bool LoadStateLegacy(std::istream& stream, size_t size);
@@ -189,6 +196,7 @@ private:
     bool m_bWideScreen;
     int m_iWideScreenWidth;
     bool m_bGameAdaptationEnabled;
+    bool m_bLevelEdgeFillEnabled;
     GameAdaptationState m_GameAdaptation;
     u16* m_pSGBFrameBuffer;
     int m_iRTCUpdateCount;
