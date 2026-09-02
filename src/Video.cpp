@@ -852,6 +852,14 @@ void Video::RenderBG(int line, int pixel, int pixels_to_render)
                     break;
                 }
             }
+            // The shifted origin belongs only to gameplay. RenderBG's local
+            // origin already falls back when LevelEdgeView is inactive; reset
+            // the persistent sprite copy at the same frame boundary so menus
+            // cannot inherit the last level-edge view. Do not reset it during
+            // gameplay: HUD rows deliberately skip LevelEdgeView, and sprites
+            // crossing that raster still need the gameplay rows' origin.
+            if (!m_bLevelEdgeGameplay)
+                m_iLevelEdgeOriginX = m_iViewportOriginX;
             m_iLevelEdgeCameraX =
                 m_pMemory->Retrieve(m_pLevelBounds->camera_x_low)
                 | (m_pMemory->Retrieve(m_pLevelBounds->camera_x_high) << 8);
