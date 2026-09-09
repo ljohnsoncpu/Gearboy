@@ -28,6 +28,20 @@
 extern bool g_mcp_stdio_mode;
 extern bool g_mcp_router_enabled;
 
+#if defined(_WIN32)
+// Hybrid-graphics opt-in. On an Optimus/PowerXpress machine the vendor driver
+// hands an executable the discrete GPU only if the executable exports these
+// symbols; otherwise it is given the integrated one, which is what this
+// frontend was getting on Windows: candidate C selected NVIDIA through WSL
+// environment variables, and candidate E leaves WSL. Exported names, so
+// extern "C". This is about which GPU presents, not about the startup crash
+// that led to it - that was a texture over-read. See project ADR 0012.
+extern "C" {
+__declspec(dllexport) unsigned long NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+#endif
+
 int main(int argc, char* argv[])
 {
     attach_parent_console(argc, argv);
