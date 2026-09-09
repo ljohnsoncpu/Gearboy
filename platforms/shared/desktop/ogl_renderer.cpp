@@ -314,7 +314,16 @@ static bool init_ogl_emu(void)
 {
     glGenFramebuffers(1, &frame_buffer_object);
     create_texture_2d(&ogl_renderer_emu_texture, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE, NULL, false);
-    create_texture_2d(&system_texture, SYSTEM_TEXTURE_WIDTH, SYSTEM_TEXTURE_HEIGHT, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*) emu_frame_buffer, false);
+    // Upstream seeded this 256x256 texture from emu_frame_buffer, but that
+    // buffer is new GB_Color[SGB_SCREEN_WIDTH * SGB_SCREEN_HEIGHT] - 256x224 -
+    // so glTexImage2D read 196608 bytes from a 172032-byte allocation: 24576
+    // bytes past the end, on every single start. Linux tolerated it; on Windows
+    // the pages after the allocation are not always mapped and the ICD faulted,
+    // Intel and NVIDIA alike. Nothing needs the seed. render_emu_normal calls
+    // update_system_texture before it samples this texture, only the
+    // screen-sized sub-rectangle is ever sampled, and both sibling textures
+    // here already pass NULL. See project ADR 0012.
+    create_texture_2d(&system_texture, SYSTEM_TEXTURE_WIDTH, SYSTEM_TEXTURE_HEIGHT, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE, NULL, false);
 
     glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer_object);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ogl_renderer_emu_texture, 0);
