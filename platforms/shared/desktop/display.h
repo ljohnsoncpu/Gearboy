@@ -32,6 +32,7 @@ EXTERN SDL_GLContext display_gl_context;
 
 EXTERN void display_begin_frame(void);
 EXTERN void display_render(void);
+EXTERN void display_note_pointer_event(Uint64 timestamp_ns);
 EXTERN void display_frame_throttle(void);
 EXTERN bool display_should_run_emu_frame(void);
 EXTERN void display_use_vsync_if_enabled(void);

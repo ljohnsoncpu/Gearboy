@@ -385,6 +385,27 @@ void emu_update(void)
         memset(audio_buffer, 0, silence_count * sizeof(s16));
         sound_queue_write(audio_buffer, silence_count, false);
     }
+    if (SDL_getenv("GEARBOY_TIMING_DIAGNOSTICS"))
+    {
+        static Uint64 timing_start_ns = SDL_GetTicksNS();
+        static unsigned int timing_frames = 0;
+        static unsigned int timing_samples = 0;
+        if (frame_completed)
+        {
+            timing_frames++;
+            timing_samples += (unsigned int)sampleCount;
+        }
+        Uint64 timing_now_ns = SDL_GetTicksNS();
+        Uint64 timing_elapsed_ns = timing_now_ns - timing_start_ns;
+        if (timing_elapsed_ns >= SDL_NS_PER_SECOND)
+        {
+            Log("Timing: emulated %.2f frames/s, generated %.2f samples/s", (double)timing_frames * (double)SDL_NS_PER_SECOND / (double)timing_elapsed_ns, (double)timing_samples * (double)SDL_NS_PER_SECOND / (double)timing_elapsed_ns);
+            timing_start_ns = timing_now_ns;
+            timing_frames = 0;
+            timing_samples = 0;
+        }
+    }
+
     // Mouse tilt decay: gradually return to center each frame
     if (config_emulator.tilt_source == 1)
     {

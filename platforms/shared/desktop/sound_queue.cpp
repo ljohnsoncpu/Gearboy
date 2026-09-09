@@ -29,10 +29,12 @@
 
 static SDL_AudioStream* sound_queue_stream;
 static bool sound_queue_sound_open;
+static bool sound_queue_playback_started;
 static int sound_queue_max_queued_bytes;
 static int sound_queue_buffer_size;
 static int sound_queue_bytes_per_second;
 static s16* sound_queue_last_written;
+static bool sound_queue_wsl;
 
 static bool is_running_in_wsl(void);
 
@@ -41,6 +43,8 @@ void sound_queue_init(void)
     InitPointer(sound_queue_stream);
     InitPointer(sound_queue_last_written);
     sound_queue_sound_open = false;
+    sound_queue_playback_started = false;
+    sound_queue_wsl = false;
 
     int audio_drivers_count = SDL_GetNumAudioDrivers();
 
@@ -57,7 +61,9 @@ void sound_queue_init(void)
         if (is_running_in_wsl())
         {
             Debug("Sound Queue: Running in WSL");
-            SDL_SetHint("SDL_AUDIODRIVER", "pulseaudio");
+            sound_queue_wsl = true;
+            if (!SDL_getenv("SDL_AUDIODRIVER"))
+                SDL_SetHint("SDL_AUDIODRIVER", "pulseaudio");
         }
         else
         {
@@ -117,10 +123,19 @@ bool sound_queue_start(int sample_rate, int channel_count, int buffer_size, int 
     }
 
     SDL_AudioDeviceID selected_device = SDL_GetAudioStreamDevice(sound_queue_stream);
+    SDL_AudioSpec source_spec;
+    SDL_AudioSpec device_spec;
+    if (SDL_GetAudioStreamFormat(sound_queue_stream, &source_spec, &device_spec))
+        Log("Sound Queue: Stream %d Hz -> device %d Hz", source_spec.freq, device_spec.freq);
 
     Log("Sound Queue: Started [%s] - frequency: %d format: 0x%04X channels: %d", SDL_GetAudioDeviceName(selected_device), spec.freq, spec.format, spec.channels);
 
-    SDL_ResumeAudioStreamDevice(sound_queue_stream);
+    // WSL audio is intentionally decoupled from video pacing. Seed one silent
+    // emulation buffer so device-sized pulls cannot race the first few frames.
+    if (sound_queue_wsl)
+        SDL_PutAudioStreamData(sound_queue_stream, sound_queue_last_written, buffer_size * (int)sizeof(s16));
+
+    sound_queue_playback_started = false;
     sound_queue_sound_open = true;
 
     return true;
@@ -131,6 +146,7 @@ void sound_queue_stop(void)
     if (sound_queue_sound_open)
     {
         sound_queue_sound_open = false;
+        sound_queue_playback_started = false;
         if (sound_queue_stream)
         {
             SDL_PauseAudioStreamDevice(sound_queue_stream);
@@ -169,6 +185,27 @@ void sound_queue_write(s16* samples, int count, bool sync)
     int bytes = count * (int)sizeof(s16);
     int queued = SDL_GetAudioStreamQueued(sound_queue_stream);
 
+    static Uint64 diagnostic_start_ns = 0;
+    static Uint64 diagnostic_wait_ns = 0;
+    static unsigned int diagnostic_underruns = 0;
+    static unsigned int diagnostic_overruns = 0;
+    bool diagnostics = SDL_getenv("GEARBOY_TIMING_DIAGNOSTICS") != NULL;
+    if (diagnostics)
+    {
+        Uint64 now_ns = SDL_GetTicksNS();
+        if (diagnostic_start_ns == 0)
+            diagnostic_start_ns = now_ns;
+        else if (now_ns - diagnostic_start_ns >= SDL_NS_PER_SECOND)
+        {
+            Log("Timing: audio underruns %u/s, overruns %u/s, queued %d bytes", diagnostic_underruns, diagnostic_overruns, queued);
+            Log("Timing stages: audio sync wait %.3f ms/s", (double)diagnostic_wait_ns / 1e6);
+            diagnostic_wait_ns = 0;
+            diagnostic_start_ns = now_ns;
+            diagnostic_underruns = 0;
+            diagnostic_overruns = 0;
+        }
+    }
+
     if (count > sound_queue_buffer_size)
     {
         Log("Sound Queue: Write exceeds queue buffer size (%d > %d)", count, sound_queue_buffer_size);
@@ -177,30 +214,45 @@ void sound_queue_write(s16* samples, int count, bool sync)
     if (queued == 0)
     {
         SOUND_QUEUE_DEBUG("Sound Queue: Underrun detected, queue was empty");
+        if (diagnostics)
+            diagnostic_underruns++;
     }
 
-    if (sync)
+    if (sync && !sound_queue_wsl)
     {
         int room = sound_queue_max_queued_bytes - queued;
         if (room < bytes)
         {
             SOUND_QUEUE_DEBUG("Sound Queue: Sync wait, need %d bytes but only %d free (queued %d, max %d)", bytes, room, queued, sound_queue_max_queued_bytes);
             int needed = bytes - room;
-            int wait_ms = (needed * 1000) / sound_queue_bytes_per_second;
-            if (wait_ms >= 1)
-                SDL_Delay(wait_ms);
+            Uint64 wait_ns = ((Uint64)needed * SDL_NS_PER_SECOND) / (Uint64)sound_queue_bytes_per_second;
+            if (wait_ns > 0)
+            {
+                const Uint64 start = diagnostics ? SDL_GetTicksNS() : 0;
+                SDL_DelayPrecise(wait_ns);
+                if (diagnostics) diagnostic_wait_ns += SDL_GetTicksNS() - start;
+            }
         }
     }
     else
     {
-        if (queued >= sound_queue_max_queued_bytes)
+        int queue_limit = sound_queue_wsl ? sound_queue_max_queued_bytes * 4 : sound_queue_max_queued_bytes;
+        if (queued >= queue_limit)
         {
             SOUND_QUEUE_DEBUG("Sound Queue: Async overrun, dropping frame (queued %d >= max %d)", queued, sound_queue_max_queued_bytes);
+            if (diagnostics)
+                diagnostic_overruns++;
             return;
         }
     }
 
     SDL_PutAudioStreamData(sound_queue_stream, samples, bytes);
+
+    if (!sound_queue_playback_started)
+    {
+        SDL_ResumeAudioStreamDevice(sound_queue_stream);
+        sound_queue_playback_started = true;
+    }
 
     int copy_count = count < sound_queue_buffer_size ? count : sound_queue_buffer_size;
     memcpy(sound_queue_last_written, samples + (count - copy_count), copy_count * sizeof(s16));

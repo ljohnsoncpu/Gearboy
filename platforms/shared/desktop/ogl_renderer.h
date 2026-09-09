@@ -56,6 +56,7 @@ EXTERN void ogl_renderer_destroy(void);
 EXTERN void ogl_renderer_begin_render(void);
 EXTERN void ogl_renderer_render(void);
 EXTERN void ogl_renderer_end_render(void);
+EXTERN void ogl_renderer_finish(void);
 EXTERN void ogl_renderer_set_screen_geometry(const OglRendererScreenGeometry* geometry);
 EXTERN uint32_t ogl_renderer_get_screen_texture(void);
 EXTERN void ogl_renderer_get_screen_uv(float* u, float* v);

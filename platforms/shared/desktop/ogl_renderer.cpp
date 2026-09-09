@@ -97,6 +97,9 @@ bool ogl_renderer_init(void)
 
     ogl_renderer_opengl_version = (const char*)glGetString(GL_VERSION);
     Log("Starting OpenGL %s", ogl_renderer_opengl_version);
+    if (SDL_getenv("GEARBOY_TIMING_DIAGNOSTICS"))
+        Log("Timing graphics: driver %s, renderer %s, vendor %s", SDL_GetCurrentVideoDriver(),
+            (const char*)glGetString(GL_RENDERER), (const char*)glGetString(GL_VENDOR));
 
     glDisable(GL_FRAMEBUFFER_SRGB);
 
@@ -197,6 +200,11 @@ void ogl_renderer_end_render(void)
         SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
     }
 #endif
+}
+
+void ogl_renderer_finish(void)
+{
+    glFinish();
 }
 
 void ogl_renderer_set_screen_geometry(const OglRendererScreenGeometry* geometry)

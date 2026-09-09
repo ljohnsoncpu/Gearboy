@@ -186,9 +186,30 @@ void application_mainloop(void)
         handle_mouse_cursor();
         handle_menu();
         handle_single_instance();
+        const bool diagnostics = SDL_getenv("GEARBOY_TIMING_DIAGNOSTICS") != NULL;
+        const Uint64 emu_start = diagnostics ? SDL_GetTicksNS() : 0;
         run_emulator();
+        const Uint64 emu_end = diagnostics ? SDL_GetTicksNS() : 0;
         display_render();
+        const Uint64 throttle_start = diagnostics ? SDL_GetTicksNS() : 0;
         display_frame_throttle();
+        if (diagnostics)
+        {
+            static Uint64 start = emu_start, emu_ns = 0, wait_ns = 0;
+            static unsigned int frames = 0;
+            const Uint64 now = SDL_GetTicksNS();
+            emu_ns += emu_end - emu_start;
+            wait_ns += now - throttle_start;
+            frames++;
+            if (now - start >= SDL_NS_PER_SECOND)
+            {
+                Log("Timing stages: emu/update %.3f ms/frame, deadline wait %.3f ms/frame",
+                    (double)emu_ns / frames / 1e6, (double)wait_ns / frames / 1e6);
+                start = now;
+                emu_ns = wait_ns = 0;
+                frames = 0;
+            }
+        }
     }
 }
 
@@ -272,7 +293,11 @@ void application_update_title_with_rom(const char* rom)
         return;
 
     char final_title[256];
-    snprintf(final_title, 256, "%s - %s", WINDOW_TITLE, rom);
+    const char* launch_label = SDL_getenv("GEARBOY_LAUNCH_LABEL");
+    if (launch_label && launch_label[0])
+        snprintf(final_title, sizeof(final_title), "%s - %s - %s", launch_label, WINDOW_TITLE, rom);
+    else
+        snprintf(final_title, sizeof(final_title), "%s - %s", WINDOW_TITLE, rom);
     SDL_SetWindowTitle(application_sdl_window, final_title);
 }
 
@@ -402,6 +427,19 @@ static bool sdl_init(void)
     float display_scale = SDL_GetWindowDisplayScale(application_sdl_window);
     Log("Display scale: %.2f", display_scale);
 
+    if (SDL_getenv("GEARBOY_UI_GEOMETRY_DIAGNOSTICS"))
+    {
+        int window_width = 0, window_height = 0;
+        int pixel_width = 0, pixel_height = 0;
+        SDL_GetWindowSize(application_sdl_window, &window_width, &window_height);
+        SDL_GetWindowSizeInPixels(application_sdl_window, &pixel_width, &pixel_height);
+        const float pixel_density = SDL_GetWindowPixelDensity(application_sdl_window);
+        const float coordinate_scale = pixel_density / display_scale;
+        Log("UI geometry: window %dx%d, framebuffer %dx%d, logical %.1fx%.1f, display scale %.3f, pointer scale %.3f",
+            window_width, window_height, pixel_width, pixel_height,
+            pixel_width / display_scale, pixel_height / display_scale, display_scale, coordinate_scale);
+    }
+
     return true;
 }
 
@@ -479,7 +517,11 @@ static void sdl_events(void)
             sdl_events_app(&event);
 
             if (!file_dialog_active)
+            {
                 ImGui_ImplSDL3_ProcessEvent(&event);
+                if (event.type == SDL_EVENT_MOUSE_MOTION)
+                    display_note_pointer_event(event.common.timestamp);
+            }
 
             if (!file_dialog_active && !ImGui::GetIO().WantCaptureKeyboard)
                 events_shortcuts(&event);
@@ -581,10 +623,10 @@ static void run_emulator(void)
 
     config_emulator.paused = emu_is_paused();
     emu_audio_sync = config_audio.sync;
-    emu_update();
-
     if (!events_input_updated())
         events_emu();
+
+    emu_update();
     events_reset_input();
 }
 
